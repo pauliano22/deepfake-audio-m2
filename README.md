@@ -1,6 +1,18 @@
 # 🎤 Deepfake Detection Product Suite
 ## Complete Launch Documentation & Strategy Guide
 
+# Test your model
+python deepfake_detector.py  # Choose option 1 for web demo
+
+# Run desktop background monitor
+python deepfake_monitor.py   # Look for red icon in system tray
+
+# Run Chrome extension server
+python chrome_extension_server.py  # Then load extension in Chrome
+
+# Run mobile app
+python mobile_deepfake_app.py  # Desktop preview
+
 ### 📋 Table of Contents
 1. [Project Overview](#project-overview)
 2. [Technical Architecture](#technical-architecture)

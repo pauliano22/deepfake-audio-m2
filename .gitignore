@@ -1,0 +1,180 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE and editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# PyTorch models and checkpoints
+*.pth
+*.pkl
+*.pt
+models/*.pth
+models/*.pkl
+models/*.pt
+checkpoints/
+
+# Audio data and temporary files
+data/
+temp_*.wav
+temp_*.mp3
+temp_*.flac
+*.wav
+*.mp3
+*.flac
+*.m4a
+*.aac
+audio_samples/
+recordings/
+
+# Logs
+logs/
+*.log
+*.log.*
+
+# LibriSpeech dataset (very large)
+temp_libri/
+LibriSpeech/
+*.tar.gz
+*.zip
+
+# Gradio temporary files
+.gradio/
+gradio_cached_examples/
+
+# Configuration files with sensitive data
+config.json
+deepfake_monitor_config.json
+api_keys.json
+.env.local
+
+# Output and generated files
+output/
+results/
+plots/
+*.png
+*.jpg
+*.jpeg
+*.gif
+screenshots/
+
+# Compiled extensions
+*.dll
+*.dylib
+*.exe
+
+# Package files
+*.deb
+*.rpm
+*.msi
+*.dmg
+*.pkg
+
+# Chrome extension temporary files
+extension/node_modules/
+extension/dist/
+extension/*.crx
+extension/*.zip
+
+# Mobile app build files
+android/
+ios/
+*.apk
+*.ipa
+*.aab
+
+# Documentation build
+docs/_build/
+site/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Temporary system files
+.tmp/
+tmp/
+temp/
+*.tmp
+*.temp
+
+# Large datasets and models (comment out if you want to track them)
+*.bin
+*.safetensors
+huggingface_cache/
+transformers_cache/
+
+# Notebook outputs
+*.ipynb
+
+# Environment variables
+.env
+.env.production
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Windows specific
+desktop.ini
+$RECYCLE.BIN/
+
+# API keys and secrets
+elevenlabs_key.txt
+openai_key.txt
+secrets.json
