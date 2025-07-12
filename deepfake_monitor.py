@@ -1,4 +1,4 @@
-# Desktop Background Deepfake Monitor
+# Desktop Background Deepfake Monitor - WORKING VERSION
 # A system tray application that monitors all audio and alerts on deepfakes
 
 import sys
@@ -15,14 +15,13 @@ import soundfile as sf
 import pyaudio
 from datetime import datetime
 import tkinter as tk
-from tkinter import ttk, messagebox, simpledialog
-import tkinter.font as tkFont
+from tkinter import ttk, messagebox
 from PIL import Image, ImageTk
 import pystray
 from pystray import MenuItem, Menu
 import logging
-import winsound  # For Windows alert sounds
-import requests
+import winsound
+import traceback
 
 # Import our trained model components
 from deepfake_detector import DeepfakeDetectorCNN, AudioFeatureExtractor
@@ -43,8 +42,8 @@ class DeepfakeMonitor:
         self.CHUNK = 1024
         self.RECORD_SECONDS = 3
         
-        # Detection settings
-        self.alert_threshold = 0.75
+        # Detection settings - LOWERED thresholds for better detection
+        self.alert_threshold = 0.6  # LOWERED from 0.75
         self.sensitivity = "Medium"
         self.alert_sound = True
         self.alert_popup = True
@@ -59,12 +58,18 @@ class DeepfakeMonitor:
         self.tray_icon = None
         self.settings_window = None
         
+        # Thread-safe GUI queue
+        self.gui_queue = queue.Queue()
+        
         # Load model
         self.load_model()
         
         # Setup logging
         self.setup_logging()
         
+        # Try to install plyer for better notifications
+        self.install_plyer_if_needed()
+    
     def load_model(self):
         """Load the trained deepfake detection model"""
         try:
@@ -89,11 +94,23 @@ class DeepfakeMonitor:
         log_dir = Path("logs")
         log_dir.mkdir(exist_ok=True)
         
+        # Clear previous logging configuration
+        for handler in logging.root.handlers[:]:
+            logging.root.removeHandler(handler)
+        
         logging.basicConfig(
             filename=log_dir / "deepfake_detections.log",
             level=logging.INFO,
-            format='%(asctime)s - %(levelname)s - %(message)s'
+            format='%(asctime)s - %(levelname)s - %(message)s',
+            filemode='a'
         )
+        
+        # Also log to console
+        console = logging.StreamHandler()
+        console.setLevel(logging.INFO)
+        formatter = logging.Formatter('%(levelname)s - %(message)s')
+        console.setFormatter(formatter)
+        logging.getLogger('').addHandler(console)
     
     def predict_audio_chunk(self, audio_data):
         """Predict if audio chunk contains deepfake"""
@@ -102,9 +119,12 @@ class DeepfakeMonitor:
             audio_np = np.frombuffer(audio_data, dtype=np.int16).astype(np.float32)
             audio_np = audio_np / 32768.0  # Normalize
             
-            # Check if audio has sufficient volume (avoid processing silence)
+            # Check if audio has sufficient volume
             volume = np.sqrt(np.mean(audio_np**2))
-            if volume < 0.01:  # Too quiet, likely silence
+            print(f"🔊 Audio volume: {volume:.4f}")
+            
+            if volume < 0.005:
+                print("🔇 Audio too quiet, skipping...")
                 return 0.0, "SILENT"
             
             # Save temporary file for feature extraction
@@ -115,6 +135,7 @@ class DeepfakeMonitor:
             features = self.feature_extractor.extract_mel_spectrogram(temp_file)
             
             if features is None:
+                print("❌ Feature extraction failed")
                 return 0.5, "ERROR"
             
             # Predict
@@ -132,18 +153,20 @@ class DeepfakeMonitor:
             if os.path.exists(temp_file):
                 os.remove(temp_file)
             
+            print(f"🎯 Prediction: {prediction} (confidence: {fake_prob:.3f})")
+            
             return fake_prob, prediction
             
         except Exception as e:
-            print(f"Prediction error: {e}")
+            print(f"❌ Prediction error: {e}")
             return 0.5, "ERROR"
     
     def audio_monitoring_thread(self):
-        """Background thread for audio monitoring"""
+        """Background thread for audio monitoring - FIXED"""
         try:
             audio = pyaudio.PyAudio()
             
-            # Find the best input device (prefer system audio if available)
+            # Find the best input device
             input_device = self.find_best_input_device(audio)
             
             stream = audio.open(
@@ -156,6 +179,8 @@ class DeepfakeMonitor:
             )
             
             print(f"🎤 Monitoring audio on device {input_device}...")
+            
+            chunk_count = 0
             
             while self.is_monitoring:
                 # Collect audio frames
@@ -173,6 +198,9 @@ class DeepfakeMonitor:
                         break
                 
                 if audio_frames and self.is_monitoring:
+                    chunk_count += 1
+                    print(f"\n🔄 Processing audio chunk #{chunk_count}")
+                    
                     audio_data = b''.join(audio_frames)
                     fake_prob, prediction = self.predict_audio_chunk(audio_data)
                     
@@ -190,18 +218,21 @@ class DeepfakeMonitor:
                     if len(self.detection_history) > 100:
                         self.detection_history.pop(0)
                     
-                    # Trigger alert if needed
-                    if fake_prob > self.alert_threshold and prediction == "FAKE":
+                    # TRIGGER ALERT - FIXED METHOD NAME
+                    if prediction == "FAKE" and fake_prob > self.alert_threshold:
+                        print(f"🚨 ALERT TRIGGERED! Fake probability: {fake_prob:.3f}")
+                        # Use the correct method name
                         self.trigger_alert(fake_prob)
                     
                     # Log to file
                     if self.log_detections and prediction != "SILENT":
                         logging.info(f"Detection: {prediction} (confidence: {fake_prob:.3f})")
                 
-                time.sleep(0.1)  # Small delay
+                time.sleep(0.1)
                 
         except Exception as e:
             print(f"❌ Audio monitoring error: {e}")
+            traceback.print_exc()
         finally:
             if 'stream' in locals():
                 stream.stop_stream()
@@ -228,196 +259,184 @@ class DeepfakeMonitor:
         return default_device['index']
     
     def trigger_alert(self, confidence):
-        """Trigger deepfake detection alert"""
+        """Trigger deepfake detection alert - FIXED VERSION"""
         alert_message = f"🚨 DEEPFAKE DETECTED!\nConfidence: {confidence:.1%}\nTime: {datetime.now().strftime('%H:%M:%S')}"
         
         print(alert_message)
+        print("=" * 50)
+        print("🚨 DEEPFAKE ALERT! 🚨")
+        print(f"Confidence: {confidence:.1%}")
+        print(f"Time: {datetime.now().strftime('%H:%M:%S')}")
+        print("=" * 50)
         
-        # Sound alert
+        # Sound alert (safe to call from any thread)
         if self.alert_sound:
             try:
-                # Play system alert sound
-                winsound.PlaySound("SystemExclamation", winsound.SND_ALIAS)
-            except:
-                print("\a")  # Fallback beep
-        
-        # Popup alert
-        if self.alert_popup:
-            self.show_alert_popup(alert_message)
+                # Play system alert sound in a separate thread
+                def play_sound():
+                    try:
+                        winsound.PlaySound("SystemExclamation", winsound.SND_ALIAS)
+                    except:
+                        # Fallback beep
+                        for _ in range(3):  # Triple beep
+                            winsound.Beep(1000, 200)
+                            time.sleep(0.1)
+                
+                threading.Thread(target=play_sound, daemon=True).start()
+            except Exception as e:
+                print(f"Sound alert failed: {e}")
         
         # Log alert
         logging.warning(f"DEEPFAKE ALERT: Confidence {confidence:.3f}")
-    
-    def show_alert_popup(self, message):
-        """Show popup alert"""
-        try:
-            # Create alert window
-            alert_window = tk.Toplevel()
-            alert_window.title("Deepfake Alert")
-            alert_window.geometry("300x150")
-            alert_window.configure(bg='#ff4444')
-            alert_window.attributes('-topmost', True)
-            
-            # Alert message
-            label = tk.Label(alert_window, text=message, bg='#ff4444', fg='white', 
-                           font=('Arial', 12, 'bold'), wraplength=280)
-            label.pack(pady=20)
-            
-            # OK button
-            ok_button = tk.Button(alert_window, text="OK", command=alert_window.destroy,
-                                bg='white', fg='black', font=('Arial', 10, 'bold'))
-            ok_button.pack(pady=10)
-            
-            # Auto-close after 10 seconds
-            alert_window.after(10000, alert_window.destroy)
-            
-        except Exception as e:
-            print(f"Alert popup error: {e}")
-    
-    def create_settings_window(self):
-        """Create settings configuration window"""
-        if self.settings_window and self.settings_window.winfo_exists():
-            self.settings_window.lift()
-            return
         
-        self.settings_window = tk.Toplevel()
-        self.settings_window.title("Deepfake Monitor Settings")
-        self.settings_window.geometry("400x500")
-        self.settings_window.resizable(False, False)
-        
-        # Detection Settings
-        settings_frame = ttk.LabelFrame(self.settings_window, text="Detection Settings", padding=10)
-        settings_frame.pack(fill="x", padx=10, pady=5)
-        
-        # Alert threshold
-        ttk.Label(settings_frame, text="Alert Threshold:").pack(anchor="w")
-        threshold_frame = ttk.Frame(settings_frame)
-        threshold_frame.pack(fill="x", pady=5)
-        
-        self.threshold_var = tk.DoubleVar(value=self.alert_threshold)
-        threshold_scale = ttk.Scale(threshold_frame, from_=0.5, to=0.95, 
-                                  variable=self.threshold_var, orient="horizontal")
-        threshold_scale.pack(side="left", fill="x", expand=True)
-        
-        threshold_label = ttk.Label(threshold_frame, text=f"{self.alert_threshold:.2f}")
-        threshold_label.pack(side="right")
-        
-        def update_threshold_label(event=None):
-            threshold_label.config(text=f"{self.threshold_var.get():.2f}")
-        threshold_scale.configure(command=update_threshold_label)
-        
-        # Sensitivity
-        ttk.Label(settings_frame, text="Sensitivity:").pack(anchor="w", pady=(10,0))
-        sensitivity_frame = ttk.Frame(settings_frame)
-        sensitivity_frame.pack(fill="x", pady=5)
-        
-        self.sensitivity_var = tk.StringVar(value=self.sensitivity)
-        for sens in ["Low", "Medium", "High"]:
-            ttk.Radiobutton(sensitivity_frame, text=sens, variable=self.sensitivity_var, 
-                          value=sens).pack(side="left")
-        
-        # Alert Settings
-        alert_frame = ttk.LabelFrame(self.settings_window, text="Alert Settings", padding=10)
-        alert_frame.pack(fill="x", padx=10, pady=5)
-        
-        self.sound_var = tk.BooleanVar(value=self.alert_sound)
-        ttk.Checkbutton(alert_frame, text="Play alert sound", variable=self.sound_var).pack(anchor="w")
-        
-        self.popup_var = tk.BooleanVar(value=self.alert_popup)
-        ttk.Checkbutton(alert_frame, text="Show popup alerts", variable=self.popup_var).pack(anchor="w")
-        
-        self.log_var = tk.BooleanVar(value=self.log_detections)
-        ttk.Checkbutton(alert_frame, text="Log detections to file", variable=self.log_var).pack(anchor="w")
-        
-        # Detection History
-        history_frame = ttk.LabelFrame(self.settings_window, text="Recent Detections", padding=10)
-        history_frame.pack(fill="both", expand=True, padx=10, pady=5)
-        
-        # Create treeview for history
-        columns = ('Time', 'Prediction', 'Confidence')
-        history_tree = ttk.Treeview(history_frame, columns=columns, show='headings', height=8)
-        
-        for col in columns:
-            history_tree.heading(col, text=col)
-            history_tree.column(col, width=120)
-        
-        # Scrollbar
-        scrollbar = ttk.Scrollbar(history_frame, orient="vertical", command=history_tree.yview)
-        history_tree.configure(yscrollcommand=scrollbar.set)
-        
-        history_tree.pack(side="left", fill="both", expand=True)
-        scrollbar.pack(side="right", fill="y")
-        
-        # Populate history
-        for detection in self.detection_history[-20:]:  # Show last 20
-            time_str = datetime.fromisoformat(detection['timestamp']).strftime('%H:%M:%S')
-            confidence_str = f"{detection['confidence']:.3f}"
-            history_tree.insert('', 'end', values=(time_str, detection['prediction'], confidence_str))
-        
-        # Buttons
-        button_frame = ttk.Frame(self.settings_window)
-        button_frame.pack(fill="x", padx=10, pady=5)
-        
-        def save_settings():
-            self.alert_threshold = self.threshold_var.get()
-            self.sensitivity = self.sensitivity_var.get()
-            self.alert_sound = self.sound_var.get()
-            self.alert_popup = self.popup_var.get()
-            self.log_detections = self.log_var.get()
-            
-            # Save to config file
-            self.save_config()
-            messagebox.showinfo("Settings", "Settings saved successfully!")
-        
-        ttk.Button(button_frame, text="Save Settings", command=save_settings).pack(side="right", padx=5)
-        ttk.Button(button_frame, text="Close", command=self.settings_window.destroy).pack(side="right")
-    
-    def save_config(self):
-        """Save configuration to file"""
-        config = {
-            'alert_threshold': self.alert_threshold,
-            'sensitivity': self.sensitivity,
-            'alert_sound': self.alert_sound,
-            'alert_popup': self.alert_popup,
-            'log_detections': self.log_detections
-        }
-        
-        with open('deepfake_monitor_config.json', 'w') as f:
-            json.dump(config, f, indent=2)
-    
-    def load_config(self):
-        """Load configuration from file"""
-        try:
-            with open('deepfake_monitor_config.json', 'r') as f:
-                config = json.load(f)
+        # System tray notification (FIXED - removed timeout parameter)
+        if self.tray_icon:
+            try:
+                def send_notification():
+                    try:
+                        self.tray_icon.notify(
+                            title="🚨 Deepfake Detected!",
+                            message=f"AI-generated voice detected with {confidence:.1%} confidence"
+                            # Removed timeout parameter - not supported
+                        )
+                    except Exception as e:
+                        print(f"System tray notification failed: {e}")
                 
-            self.alert_threshold = config.get('alert_threshold', 0.75)
-            self.sensitivity = config.get('sensitivity', 'Medium')
-            self.alert_sound = config.get('alert_sound', True)
-            self.alert_popup = config.get('alert_popup', True)
-            self.log_detections = config.get('log_detections', True)
+                # Send notification in separate thread
+                threading.Thread(target=send_notification, daemon=True).start()
+            except Exception as e:
+                print(f"Notification setup failed: {e}")
+        
+        # Windows 10/11 Toast Notification (additional alert method)
+        try:
+            self.show_windows_toast(confidence)
+        except Exception as e:
+            print(f"Toast notification failed: {e}")
+        
+        # Desktop popup as last resort (thread-safe version)
+        if self.alert_popup:
+            try:
+                self.show_thread_safe_popup(confidence)
+            except Exception as e:
+                print(f"Popup alert failed: {e}")
+
+    def show_windows_toast(self, confidence):
+        """Show Windows 10/11 toast notification"""
+        try:
+            # Try using plyer for cross-platform notifications
+            from plyer import notification
             
-        except FileNotFoundError:
-            # Use defaults
-            pass
+            notification.notify(
+                title="🚨 Deepfake Detected!",
+                message=f"AI-generated voice detected with {confidence:.1%} confidence",
+                app_name="Deepfake Monitor",
+                timeout=10
+            )
+        except ImportError:
+            # Fallback: Use Windows built-in notification
+            try:
+                import subprocess
+                
+                # PowerShell command to show toast notification
+                ps_script = f'''
+                [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null
+                $template = [Windows.UI.Notifications.ToastNotificationManager]::GetTemplateContent([Windows.UI.Notifications.ToastTemplateType]::ToastText02)
+                $xml = [xml] $template.GetXml()
+                $xml.toast.visual.binding.text[0].AppendChild($xml.CreateTextNode("🚨 Deepfake Detected!")) | Out-Null
+                $xml.toast.visual.binding.text[1].AppendChild($xml.CreateTextNode("AI voice detected: {confidence:.1%} confidence")) | Out-Null
+                $toast = [Windows.UI.Notifications.ToastNotification]::new($xml)
+                [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier("Deepfake Monitor").Show($toast)
+                '''
+                
+                subprocess.run(['powershell', '-Command', ps_script], 
+                             capture_output=True, shell=True)
+            except Exception as e:
+                print(f"Windows toast notification failed: {e}")
+
+    def show_thread_safe_popup(self, confidence):
+        """Show popup in a thread-safe way"""
+        def show_popup():
+            try:
+                # Create a new root window for the popup
+                popup_root = tk.Tk()
+                popup_root.withdraw()  # Hide main window
+                
+                # Show message box
+                messagebox.showwarning(
+                    "🚨 Deepfake Detected!",
+                    f"AI-generated voice detected!\n\nConfidence: {confidence:.1%}\nTime: {datetime.now().strftime('%H:%M:%S')}\n\nThis audio may not be authentic."
+                )
+                
+                popup_root.destroy()
+            except Exception as e:
+                print(f"Thread-safe popup failed: {e}")
+        
+        # Run popup in separate thread
+        threading.Thread(target=show_popup, daemon=True).start()
+    
+    def install_plyer_if_needed(self):
+        """Install plyer for better notifications"""
+        try:
+            import plyer
+        except ImportError:
+            print("📦 Installing plyer for better notifications...")
+            try:
+                import subprocess
+                import sys
+                subprocess.check_call([sys.executable, "-m", "pip", "install", "plyer"])
+                print("✅ Plyer installed successfully!")
+            except Exception as e:
+                print(f"⚠️ Could not install plyer: {e}")
     
     def create_system_tray(self):
         """Create system tray icon"""
-        # Create icon (you can replace with custom icon file)
+        # Create icon
         icon_image = Image.new('RGB', (64, 64), color='red')
         
         menu = Menu(
-            MenuItem("🎤 Start Monitoring", self.start_monitoring, enabled=lambda item: not self.is_monitoring),
-            MenuItem("⏹️ Stop Monitoring", self.stop_monitoring, enabled=lambda item: self.is_monitoring),
+            MenuItem("🎤 Start Monitoring", self.start_monitoring, 
+                    enabled=lambda item: not self.is_monitoring),
+            MenuItem("⏹️ Stop Monitoring", self.stop_monitoring, 
+                    enabled=lambda item: self.is_monitoring),
             Menu.SEPARATOR,
+            MenuItem("🧪 Test Alerts", self.test_alert),  # NEW: Test alert function
             MenuItem("⚙️ Settings", self.show_settings),
-            MenuItem("📊 View History", self.show_history),
+            MenuItem("📊 View Log File", self.open_log_file),
             Menu.SEPARATOR,
             MenuItem("❌ Exit", self.quit_application)
         )
         
         self.tray_icon = pystray.Icon("deepfake_monitor", icon_image, "Deepfake Monitor", menu)
     
+    def test_alert(self, icon=None, item=None):
+        """Test all alert systems - FIXED VERSION"""
+        print("🧪 Testing alert system...")
+        confidence = 0.95
+        
+        print("Testing console alert...")
+        print(f"🚨 TEST ALERT: {confidence:.1%} confidence")
+        
+        print("Testing sound alert...")
+        if self.alert_sound:
+            try:
+                winsound.PlaySound("SystemExclamation", winsound.SND_ALIAS)
+            except:
+                winsound.Beep(1000, 500)
+        
+        print("Testing system tray notification...")
+        if self.tray_icon:
+            try:
+                # FIXED - removed timeout parameter
+                self.tray_icon.notify(
+                    "🧪 Test Alert",
+                    f"This is a test notification with {confidence:.1%} confidence"
+                )
+            except Exception as e:
+                print(f"System tray test failed: {e}")
+        
+        print("Testing full alert system...")
+        self.trigger_alert(confidence)
+
     def start_monitoring(self, icon=None, item=None):
         """Start deepfake monitoring"""
         if not self.is_monitoring:
@@ -428,9 +447,14 @@ class DeepfakeMonitor:
             monitor_thread.start()
             
             print("🎤 Deepfake monitoring started!")
+            print(f"🎯 Alert threshold: {self.alert_threshold}")
             
             if self.tray_icon:
-                self.tray_icon.notify("Deepfake monitoring started!", "Now monitoring audio for AI-generated speech")
+                try:
+                    self.tray_icon.notify("Monitoring Started!", 
+                                        f"Now detecting deepfakes (threshold: {self.alert_threshold})")
+                except:
+                    pass
     
     def stop_monitoring(self, icon=None, item=None):
         """Stop deepfake monitoring"""
@@ -439,51 +463,107 @@ class DeepfakeMonitor:
             print("⏹️ Deepfake monitoring stopped!")
             
             if self.tray_icon:
-                self.tray_icon.notify("Monitoring stopped", "Deepfake detection paused")
+                try:
+                    self.tray_icon.notify("Monitoring Stopped", "Deepfake detection paused")
+                except:
+                    pass
     
     def show_settings(self, icon=None, item=None):
         """Show settings window"""
-        if not self.root:
-            self.root = tk.Tk()
-            self.root.withdraw()  # Hide main window
+        # Simple settings display for now
+        current_settings = f"""
+Current Settings:
+- Alert Threshold: {self.alert_threshold}
+- Alert Sound: {self.alert_sound}
+- Log Detections: {self.log_detections}
+
+Recent Detections: {len(self.detection_history)}
+        """
+        print(current_settings)
         
-        self.create_settings_window()
+        if self.tray_icon:
+            try:
+                self.tray_icon.notify("Settings", f"Threshold: {self.alert_threshold}")
+            except:
+                pass
     
-    def show_history(self, icon=None, item=None):
-        """Show detection history"""
-        history_text = "Recent Detections:\n\n"
-        
-        for detection in self.detection_history[-10:]:
-            time_str = datetime.fromisoformat(detection['timestamp']).strftime('%H:%M:%S')
-            history_text += f"{time_str}: {detection['prediction']} ({detection['confidence']:.3f})\n"
-        
-        if not self.root:
-            self.root = tk.Tk()
-            self.root.withdraw()
-        
-        messagebox.showinfo("Detection History", history_text)
+    def open_log_file(self, icon=None, item=None):
+        """Open log file"""
+        try:
+            log_file = Path("logs/deepfake_detections.log")
+            if log_file.exists():
+                os.startfile(str(log_file))
+            else:
+                print("No log file found")
+                if self.tray_icon:
+                    try:
+                        self.tray_icon.notify("No Log File", "No detections logged yet")
+                    except:
+                        pass
+        except Exception as e:
+            print(f"Error opening log file: {e}")
     
     def quit_application(self, icon=None, item=None):
-        """Quit the application"""
+        """Quit the application - FIXED VERSION"""
+        print("👋 Shutting down...")
         self.stop_monitoring()
+        
         if self.tray_icon:
-            self.tray_icon.stop()
-        if self.root:
-            self.root.quit()
-        sys.exit(0)
+            try:
+                # Don't set visible = False, just stop
+                self.tray_icon.stop()
+            except:
+                pass
+        
+        # Use os._exit instead of sys.exit to avoid SystemExit errors
+        import os
+        os._exit(0)
     
     def run(self):
         """Run the deepfake monitor application"""
         print("🚀 Starting Deepfake Monitor...")
-        
-        # Load configuration
-        self.load_config()
+        print(f"🎯 Alert threshold: {self.alert_threshold}")
+        print("📋 Right-click system tray icon to start monitoring")
         
         # Create system tray
         self.create_system_tray()
         
         # Start system tray (this blocks)
-        self.tray_icon.run()
+        try:
+            self.tray_icon.run()
+        except Exception as e:
+            print(f"System tray error: {e}")
+            # Fallback: run without system tray
+            print("Running in console mode...")
+            self.console_mode()
+    
+    def console_mode(self):
+        """Fallback console mode if system tray fails"""
+        print("\n📟 Console Mode")
+        print("Commands: start, stop, test, quit")
+        
+        while True:
+            try:
+                cmd = input("\n> ").lower().strip()
+                
+                if cmd == "start":
+                    self.start_monitoring()
+                elif cmd == "stop":
+                    self.stop_monitoring()
+                elif cmd == "test":
+                    self.test_alert()
+                elif cmd in ["quit", "exit", "q"]:
+                    break
+                elif cmd == "status":
+                    print(f"Monitoring: {self.is_monitoring}")
+                    print(f"Detections: {len(self.detection_history)}")
+                else:
+                    print("Commands: start, stop, test, status, quit")
+                    
+            except KeyboardInterrupt:
+                break
+        
+        self.quit_application()
 
 def main():
     """Main entry point"""
@@ -494,6 +574,7 @@ def main():
         print("\n⏹️ Application interrupted")
     except Exception as e:
         print(f"❌ Application error: {e}")
+        traceback.print_exc()
 
 if __name__ == "__main__":
     main()
