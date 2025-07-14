@@ -15,6 +15,7 @@ from datetime import datetime
 import json
 import threading
 import time
+from pathlib import Path  # <-- ADD THIS LINE
 
 # Import your model
 from deepfake_detector import DeepfakeDetectorCNN, AudioFeatureExtractor
