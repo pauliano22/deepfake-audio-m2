@@ -1,0 +1,15 @@
+{
+  "input_shape": [
+    1,
+    1,
+    128,
+    128
+  ],
+  "input_name": "audio_features",
+  "output_name": "predictions",
+  "model_info": {
+    "framework": "pytorch",
+    "opset_version": 11,
+    "description": "Deepfake audio detection model"
+  }
+}
