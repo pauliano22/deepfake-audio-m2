@@ -1,0 +1,9 @@
+# Updated requirements for easier Windows installation
+kivy[base,media]
+kivymd
+requests
+plyer
+
+# For Windows users, install these first:
+# pip install --upgrade pip
+# pip install kivy[base,media] kivymd
