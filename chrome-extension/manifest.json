@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "AI Voice Detector",
+  "name": "Lion Project AI Detector",
   "version": "1.0",
-  "description": "Real-time detection of AI-generated voices",
+  "description": "Real-time detection of AI-generated content.",
   "permissions": ["activeTab", "scripting", "storage"],
   "host_permissions": ["<all_urls>"],
   "action": {
