@@ -557,7 +557,7 @@ if (window.aiVoiceDetectorInjected) {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
             font-weight: 600;
             z-index: 10000;
-            box-shadow: 0 8px 25px rgba(239, 68, 68, 0.4);
+            box-shadow: 0 8px 5px rgba(239, 68, 68, 0.4);
             max-width: 320px;
             border: 1px solid red;
             backdrop-filter: blur(10px);
@@ -566,7 +566,7 @@ if (window.aiVoiceDetectorInjected) {
         
         alert.innerHTML = `
             <div style="font-size: 16px; font-weight: 700; margin-bottom: 8px;">
-                AI Voice Detected
+                AI Detected
             </div>
             <div style="font-size: 13px; margin-bottom: 12px; opacity: 0.9; line-height: 1.4;">
                 Confidence: ${(result.confidence * 100).toFixed(1)}%<br>
@@ -691,7 +691,7 @@ if (window.aiVoiceDetectorInjected) {
             max-width: 300px;
             border: 1px solid red;
             backdrop-filter: blur(10px);
-            box-shadow: 0 8px 25px red;
+            box-shadow: 0 8px 5px red;
             line-height: 1.5;
             white-space: pre-line;
         `;
