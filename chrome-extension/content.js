@@ -1,7 +1,8 @@
 // content.js - Simplified screen audio capture only
-// Prevent multiple injections
+// Prevent multiple injections with stronger protection
 if (window.aiVoiceDetectorInjected) {
     console.log('🔄 AI Voice Detector already injected, skipping...');
+    throw new Error('Already injected'); // Forcefully stop execution
 } else {
     window.aiVoiceDetectorInjected = true;
     console.log('🎤 AI Voice Detector - Screen Audio Capture');
@@ -10,7 +11,17 @@ if (window.aiVoiceDetectorInjected) {
     let audioContext;
     let mediaStream = null;
     let scriptProcessor = null;
-    let screenShareRequested = false; // Prevent multiple prompts
+    
+    // GLOBAL state management to prevent double popups
+    if (!window.aiVoiceDetectorGlobalState) {
+        window.aiVoiceDetectorGlobalState = {
+            screenShareRequested: false,
+            screenShareInProgress: false,
+            requestTimestamp: 0
+        };
+    }
+    
+    const globalState = window.aiVoiceDetectorGlobalState;
 
     // Anti-spam controls
     let lastAlertTime = 0;
@@ -55,16 +66,28 @@ if (window.aiVoiceDetectorInjected) {
             return;
         }
 
-        if (screenShareRequested) {
-            throw new Error('Screen sharing already in progress. Please complete the previous request.');
+        const now = Date.now();
+        
+        // Aggressive prevention of multiple dialogs
+        if (globalState.screenShareRequested || globalState.screenShareInProgress) {
+            console.log('⚠️ Screen share blocked - already in progress');
+            throw new Error('Screen sharing request already in progress. Please wait or refresh the page.');
+        }
+        
+        // Additional time-based protection (prevent requests within 10 seconds)
+        if (now - globalState.requestTimestamp < 10000) {
+            console.log('⚠️ Screen share blocked - too recent');
+            throw new Error('Please wait a moment before requesting screen share again.');
         }
 
         console.log('🖥️ Starting screen audio capture...');
-        screenShareRequested = true;
+        globalState.screenShareRequested = true;
+        globalState.screenShareInProgress = true;
+        globalState.requestTimestamp = now;
         
         try {
-            // Show instruction notification
-            showNotification('🖥️ Screen Share Instructions', 'Select "Entire screen" and check "Also share system audio"!', 8000);
+            // Show detailed instruction notification
+            showNotification('Screen Share Required', 'Select your screen from the list\nCheck "Also share system audio"\nClick "Share"', 10000);
             
             mediaStream = await navigator.mediaDevices.getDisplayMedia({
                 video: true,
@@ -109,11 +132,14 @@ if (window.aiVoiceDetectorInjected) {
             });
             
             isMonitoring = true;
+            globalState.screenShareInProgress = false; // Clear the progress flag on success
             console.log('✅ Screen audio capture active');
-            showNotification('🎯 Detection Active!', 'Monitoring system audio for AI voices...', 3000);
+            showNotification('Detection Active', 'Monitoring system audio for AI voices...', 3000);
             
         } catch (error) {
-            screenShareRequested = false;
+            // Reset ALL flags on any error
+            globalState.screenShareRequested = false;
+            globalState.screenShareInProgress = false;
             
             if (error.name === 'NotAllowedError') {
                 throw new Error('Permission denied. Please allow screen sharing and check "Also share system audio".');
@@ -260,12 +286,27 @@ if (window.aiVoiceDetectorInjected) {
             audioContext = null;
         }
         
+        // Reset all flags including global state
         isMonitoring = false;
-        screenShareRequested = false;
+        if (globalState) {
+            globalState.screenShareRequested = false;
+            globalState.screenShareInProgress = false;
+        }
+        
         console.log('✅ Screen audio monitoring stopped');
         
-        showNotification('⏹️ Monitoring Stopped', 'Screen audio capture stopped');
+        showNotification('Monitoring Stopped', 'Screen audio capture stopped');
     }
+
+    // Cleanup function for global access
+    window.aiVoiceDetectorCleanup = function() {
+        stopScreenAudioCapture();
+        if (globalState) {
+            globalState.screenShareRequested = false;
+            globalState.screenShareInProgress = false;
+            globalState.requestTimestamp = 0;
+        }
+    };
 
     async function analyzeAudioBuffer(audioBuffer) {
         try {
@@ -491,35 +532,55 @@ if (window.aiVoiceDetectorInjected) {
         
         alert.style.cssText = `
             position: fixed;
-            top: 15px;
-            right: 15px;
-            background: #dc3545;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
             color: white;
-            padding: 15px;
-            border-radius: 8px;
-            font-family: Arial, sans-serif;
-            font-weight: bold;
+            padding: 20px;
+            border-radius: 12px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            font-weight: 600;
             z-index: 10000;
-            box-shadow: 0 6px 12px rgba(220, 53, 69, 0.4);
-            max-width: 280px;
-            border: 2px solid #ff0000;
-            animation: alertSlideIn 0.3s ease-out;
-            font-size: 13px;
+            box-shadow: 0 8px 25px rgba(239, 68, 68, 0.4);
+            max-width: 320px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            animation: alertSlideIn 0.4s ease-out;
         `;
         
         alert.innerHTML = `
-            🚨 AI VOICE DETECTED!<br>
-            <div style="font-size: 11px; margin: 8px 0; opacity: 0.9;">
+            <div style="font-size: 16px; font-weight: 700; margin-bottom: 8px;">
+                AI Voice Detected
+            </div>
+            <div style="font-size: 13px; margin-bottom: 12px; opacity: 0.9; line-height: 1.4;">
                 Confidence: ${(result.confidence * 100).toFixed(1)}%<br>
                 Source: System Audio
             </div>
-            <button onclick="this.parentElement.remove(); window.activeAlert = null;" 
-                    style="margin-top: 8px; padding: 6px 10px; border: none; 
-                           border-radius: 4px; background: white; color: black; 
-                           cursor: pointer; font-weight: bold; font-size: 11px;">
+            <button id="dismissAlert" 
+                    style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); 
+                           color: white; padding: 8px 16px; border-radius: 6px; 
+                           cursor: pointer; font-weight: 600; font-size: 12px; 
+                           transition: all 0.2s ease; backdrop-filter: blur(10px);">
                 Dismiss
             </button>
         `;
+        
+        // Add working dismiss button event listener
+        const dismissBtn = alert.querySelector('#dismissAlert');
+        dismissBtn.addEventListener('click', function() {
+            if (alert.parentElement) {
+                alert.remove();
+                activeAlert = null;
+            }
+        });
+        
+        dismissBtn.addEventListener('mouseover', function() {
+            this.style.background = 'rgba(255, 255, 255, 0.3)';
+        });
+        
+        dismissBtn.addEventListener('mouseout', function() {
+            this.style.background = 'rgba(255, 255, 255, 0.2)';
+        });
         
         // Add animation
         if (!document.getElementById('alert-styles')) {
@@ -528,11 +589,11 @@ if (window.aiVoiceDetectorInjected) {
             style.textContent = `
                 @keyframes alertSlideIn {
                     from { 
-                        transform: translateX(100%); 
+                        transform: translateX(100%) scale(0.9); 
                         opacity: 0; 
                     }
                     to { 
-                        transform: translateX(0); 
+                        transform: translateX(0) scale(1); 
                         opacity: 1; 
                     }
                 }
@@ -542,7 +603,7 @@ if (window.aiVoiceDetectorInjected) {
         
         document.body.appendChild(alert);
         
-        // Auto-dismiss after 10 seconds
+        // Auto-dismiss after 12 seconds
         setTimeout(() => {
             if (alert.parentElement) {
                 alert.remove();
@@ -550,7 +611,7 @@ if (window.aiVoiceDetectorInjected) {
                     activeAlert = null;
                 }
             }
-        }, 10000);
+        }, 12000);
     }
 
     function calculateRMS(audioData) {
@@ -601,21 +662,25 @@ if (window.aiVoiceDetectorInjected) {
         const notification = document.createElement('div');
         notification.style.cssText = `
             position: fixed;
-            top: 10px;
-            left: 10px;
-            background: rgba(40, 167, 69, 0.9);
+            top: 20px;
+            left: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            padding: 12px;
-            border-radius: 6px;
-            font-family: Arial, sans-serif;
-            font-size: 12px;
-            font-weight: bold;
+            padding: 16px 20px;
+            border-radius: 12px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            font-size: 13px;
+            font-weight: 600;
             z-index: 9999;
-            max-width: 250px;
-            border: 2px solid #28a745;
+            max-width: 300px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+            line-height: 1.5;
+            white-space: pre-line;
         `;
         
-        notification.innerHTML = `<strong>${title}</strong><br>${message}`;
+        notification.innerHTML = `<div style="font-weight: 700; margin-bottom: 4px;">${title}</div><div style="opacity: 0.9;">${message}</div>`;
         document.body.appendChild(notification);
         
         setTimeout(() => {

@@ -5,13 +5,14 @@
     <style>
         body {
             width: 240px;
-            min-height: 280px;
+            min-height: 300px;
             margin: 0;
             padding: 0;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #0a0a0a;
-            color: white;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            background: #000000;
+            color: #ffffff;
             font-size: 12px;
+            line-height: 1.4;
         }
 
         .page {
@@ -23,45 +24,98 @@
         }
 
         .header {
-            padding: 15px;
+            padding: 15px 12px 12px 12px;
             text-align: center;
-            background: #111111;
-            border-bottom: 1px solid rgba(255, 193, 7, 0.2);
+            background: #000000;
+            border-bottom: 1px solid #ffd700;
+            position: relative;
+        }
+
+        .header::after {
+            content: '';
+            position: absolute;
+            bottom: -3px;
+            left: 12px;
+            right: 12px;
+            height: 1px;
+            background: #ff0000;
+        }
+
+        .logo {
+            width: 24px;
+            height: 24px;
+            background: #000000;
+            border: 1px solid #ffd700;
+            position: relative;
+            border-radius: 4px;
+            margin: 0 auto 8px auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: #ffd700;
+            font-size: 12px;
+        }
+
+        .logo::after {
+            content: '';
+            position: absolute;
+            top: -3px;
+            left: -3px;
+            right: -3px;
+            bottom: -3px;
+            border: 1px solid #ff0000;
+            border-radius: 4px;
         }
 
         .header h1 {
-            margin: 0 0 6px 0;
-            font-size: 15px;
-            font-weight: 700;
-            color: #ffc107;
+            margin: 0 0 4px 0;
+            font-size: 14px;
+            font-weight: 600;
+            color: #ffffff;
+            letter-spacing: -0.5px;
         }
 
         .status {
-            padding: 5px 12px;
+            padding: 4px 10px;
             border-radius: 12px;
             font-size: 10px;
-            font-weight: 600;
+            font-weight: 500;
             display: inline-block;
-            border: 1px solid transparent;
+            border: 1px solid #ffd700;
+            background: #000000;
+            color: #ffffff;
+            position: relative;
+        }
+
+        .status::after {
+            content: '';
+            position: absolute;
+            top: -3px;
+            left: -3px;
+            right: -3px;
+            bottom: -3px;
+            border: 1px solid #ff0000;
+            border-radius: 12px;
         }
 
         .status.connected {
-            background: rgba(40, 167, 69, 0.2);
-            border-color: #28a745;
-            color: #28a745;
+            color: #00ff00;
+            border-color: #00ff00;
+            box-shadow: inset 0 0 0 1px #ffd700, inset 0 0 0 3px #000000;
         }
 
         .status.monitoring {
-            background: rgba(255, 193, 7, 0.2);
-            border-color: #ffc107;
-            color: #ffc107;
+            color: #ffd700;
+            border-color: #ffd700;
+            box-shadow: inset 0 0 0 1px #ff0000, inset 0 0 0 3px #000000;
             animation: pulse 2s infinite;
         }
 
         .status.disconnected {
-            background: rgba(220, 53, 69, 0.2);
-            border-color: #dc3545;
-            color: #dc3545;
+            color: #ff0000;
+            border-color: #ff0000;
+            box-shadow: inset 0 0 0 1px #ffd700, inset 0 0 0 3px #000000;
         }
 
         @keyframes pulse {
@@ -70,92 +124,162 @@
         }
 
         .controls {
-            padding: 15px;
+            padding: 12px;
+            background: #000000;
         }
 
-        .instruction-box {
-            background: rgba(255, 193, 7, 0.1);
-            border: 1px solid rgba(255, 193, 7, 0.3);
-            border-radius: 6px;
+        .instruction-card {
+            background: #000000;
+            border: 1px solid #ffd700;
+            position: relative;
+            border-radius: 4px;
             padding: 12px;
-            margin-bottom: 15px;
-            font-size: 11px;
-            line-height: 1.4;
+            margin-bottom: 12px;
+        }
+
+        .instruction-card::after {
+            content: '';
+            position: absolute;
+            top: -3px;
+            left: -3px;
+            right: -3px;
+            bottom: -3px;
+            border: 1px solid #ff0000;
+            border-radius: 4px;
         }
 
         .instruction-title {
             font-weight: 600;
-            color: #ffc107;
-            margin-bottom: 6px;
             font-size: 12px;
+            margin-bottom: 8px;
+            color: #ffd700;
         }
 
         .instruction-steps {
-            color: rgba(255, 255, 255, 0.9);
+            font-size: 11px;
+            line-height: 1.4;
+            color: #ffffff;
         }
 
-        .instruction-steps strong {
-            color: #ffc107;
+        .step {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 4px;
+        }
+
+        .step:last-child {
+            margin-bottom: 0;
+        }
+
+        .step-number {
+            background: #000000;
+            border: 1px solid #ffd700;
+            position: relative;
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 9px;
+            font-weight: 600;
+            margin-right: 6px;
+            flex-shrink: 0;
+            margin-top: 1px;
+            color: #ffd700;
+        }
+
+        .step-number::after {
+            content: '';
+            position: absolute;
+            top: -3px;
+            left: -3px;
+            right: -3px;
+            bottom: -3px;
+            border: 1px solid #ff0000;
+            border-radius: 50%;
+        }
+
+        .step-text {
+            flex: 1;
         }
 
         .main-button {
             width: 100%;
-            background: linear-gradient(135deg, #ffc107, #ff8c00);
-            border: none;
-            color: #000000;
-            padding: 14px 16px;
-            border-radius: 6px;
+            background: #000000;
+            border: 1px solid #ffd700;
+            position: relative;
+            color: #ffffff;
+            padding: 12px 14px;
+            border-radius: 4px;
             font-weight: 600;
             cursor: pointer;
-            font-size: 13px;
+            font-size: 12px;
             transition: all 0.3s ease;
-            margin-bottom: 15px;
+            margin-bottom: 10px;
+        }
+
+        .main-button::after {
+            content: '';
+            position: absolute;
+            top: -3px;
+            left: -3px;
+            right: -3px;
+            bottom: -3px;
+            border: 1px solid #ff0000;
+            border-radius: 4px;
         }
 
         .main-button:hover {
+            color: #ffd700;
             transform: translateY(-1px);
-            box-shadow: 0 4px 10px rgba(255, 193, 7, 0.3);
+        }
+
+        .main-button:active {
+            transform: translateY(0);
         }
 
         .main-button.danger {
-            background: linear-gradient(135deg, #dc3545, #c82333);
-            color: white;
+            color: #ff0000;
+            border-color: #ff0000;
+            box-shadow: inset 0 0 0 2px #ffd700, inset 0 0 0 6px #000000;
         }
 
         .main-button.danger:hover {
-            box-shadow: 0 4px 10px rgba(220, 53, 69, 0.3);
+            color: #ff4444;
         }
 
         .secondary-button {
             width: 100%;
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 193, 7, 0.3);
-            color: #ffc107;
+            background: #000000;
+            border: 1px solid #ffd700;
+            box-shadow: inset 0 0 0 1px #ff0000, inset 0 0 0 3px #000000;
+            color: #ffffff;
             padding: 10px 16px;
-            border-radius: 6px;
+            border-radius: 5px;
             font-weight: 500;
             cursor: pointer;
-            font-size: 12px;
+            font-size: 13px;
             transition: all 0.3s ease;
         }
 
         .secondary-button:hover {
-            background: rgba(255, 193, 7, 0.1);
-            border-color: #ffc107;
+            color: #ffd700;
+            transform: translateY(-1px);
         }
 
         .secondary-button:disabled {
-            opacity: 0.4;
+            opacity: 0.5;
             cursor: not-allowed;
         }
 
         .loading {
             display: inline-block;
-            width: 10px;
-            height: 10px;
-            border: 2px solid rgba(255, 193, 7, 0.3);
+            width: 12px;
+            height: 12px;
+            border: 2px solid #ffd700;
             border-radius: 50%;
-            border-top-color: #ffc107;
+            border-top-color: #ff0000;
             animation: spin 1s ease-in-out infinite;
         }
 
@@ -165,109 +289,126 @@
 
         /* History Page Styles */
         .back-header {
-            padding: 12px 15px;
-            background: #111111;
-            border-bottom: 1px solid rgba(255, 193, 7, 0.2);
+            padding: 20px;
+            background: #000000;
+            border-bottom: double 4px transparent;
+            border-image: linear-gradient(90deg, #ffd700, #ff0000) 1;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
         }
 
         .back-button {
-            background: none;
-            border: none;
-            color: #ffc107;
-            font-size: 16px;
+            background: #000000;
+            border: 1px solid #ffd700;
+            box-shadow: inset 0 0 0 1px #ff0000, inset 0 0 0 3px #000000;
+            color: #ffd700;
+            width: 36px;
+            height: 36px;
+            border-radius: 6px;
             cursor: pointer;
-            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            transition: all 0.2s ease;
         }
 
         .back-button:hover {
-            opacity: 0.7;
+            color: #ffffff;
         }
 
         .back-title {
-            font-size: 14px;
+            font-size: 16px;
             font-weight: 600;
-            color: #ffc107;
+            color: #ffffff;
             margin: 0;
         }
 
         .history-controls {
-            padding: 12px 15px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            background: #000000;
+            border-bottom: 1px solid #333333;
         }
 
         .clear-button {
             width: 100%;
-            background: rgba(220, 53, 69, 0.2);
-            border: 1px solid rgba(220, 53, 69, 0.3);
-            color: #dc3545;
-            padding: 8px 12px;
-            border-radius: 4px;
+            background: #000000;
+            border: 1px solid #ff0000;
+            box-shadow: inset 0 0 0 1px #ffd700, inset 0 0 0 3px #000000;
+            color: #ff0000;
+            padding: 10px 16px;
+            border-radius: 6px;
             font-weight: 500;
             cursor: pointer;
-            font-size: 11px;
+            font-size: 13px;
             transition: all 0.3s ease;
         }
 
         .clear-button:hover {
-            background: rgba(220, 53, 69, 0.3);
-            border-color: #dc3545;
+            color: #ff4444;
         }
 
-        .stats {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 193, 7, 0.2);
-            border-radius: 6px;
-            padding: 12px;
-            margin: 12px 15px;
+        .stats-card {
+            background: #000000;
+            border: 2px solid #ffd700;
+            box-shadow: inset 0 0 0 2px #ff0000, inset 0 0 0 6px #000000;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px;
         }
 
-        .stats h3 {
-            margin: 0 0 10px 0;
-            font-size: 12px;
+        .stats-title {
+            margin: 0 0 16px 0;
+            font-size: 15px;
             font-weight: 600;
             text-align: center;
-            color: #ffc107;
+            color: #ffd700;
         }
 
         .stats-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 8px;
+            gap: 12px;
         }
 
         .stat-item {
             text-align: center;
-            padding: 8px 6px;
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 4px;
+            padding: 16px 12px;
+            background: #000000;
+            border: 1px solid #ffd700;
+            box-shadow: inset 0 0 0 1px #ff0000, inset 0 0 0 3px #000000;
+            border-radius: 6px;
         }
 
         .stat-number {
-            font-size: 16px;
-            font-weight: bold;
+            font-size: 24px;
+            font-weight: 700;
             display: block;
-            color: #ffc107;
+            color: #ffffff;
+            margin-bottom: 4px;
         }
 
         .stat-label {
-            font-size: 9px;
+            font-size: 11px;
             opacity: 0.8;
             text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 500;
+            color: #ffd700;
         }
 
-        .detections {
-            padding: 15px;
+        .detections-section {
+            padding: 20px;
+            background: #000000;
         }
 
-        .detections h3 {
-            margin: 0 0 10px 0;
-            font-size: 12px;
+        .detections-title {
+            margin: 0 0 16px 0;
+            font-size: 15px;
             font-weight: 600;
             text-align: center;
-            color: #ffc107;
+            color: #ffd700;
         }
 
         .detection-list {
@@ -276,21 +417,22 @@
         }
 
         .detection-item {
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 4px;
-            padding: 10px;
-            margin-bottom: 6px;
-            border-left: 3px solid transparent;
+            background: #000000;
+            border: 1px solid #ffd700;
+            box-shadow: inset 0 0 0 1px #ff0000, inset 0 0 0 3px #000000;
+            border-radius: 6px;
+            padding: 16px;
+            margin-bottom: 8px;
         }
 
         .detection-item.fake {
-            border-left-color: #dc3545;
-            background: rgba(220, 53, 69, 0.1);
+            border-color: #ff0000;
+            box-shadow: inset 0 0 0 1px #ffd700, inset 0 0 0 3px #000000;
         }
 
         .detection-item.real {
-            border-left-color: #28a745;
-            background: rgba(40, 167, 69, 0.1);
+            border-color: #00ff00;
+            box-shadow: inset 0 0 0 1px #ffd700, inset 0 0 0 3px #000000;
         }
 
         .detection-item:last-child {
@@ -298,55 +440,68 @@
         }
 
         .detection-list::-webkit-scrollbar {
-            width: 4px;
+            width: 6px;
         }
 
         .detection-list::-webkit-scrollbar-track {
-            background: rgba(255, 255, 255, 0.1);
+            background: #000000;
+            border: 1px solid #333333;
         }
 
         .detection-list::-webkit-scrollbar-thumb {
-            background: #ffc107;
-            border-radius: 2px;
+            background: linear-gradient(180deg, #ffd700, #ff0000);
+            border-radius: 3px;
         }
 
         .empty-state {
             text-align: center;
-            color: rgba(255,255,255,0.5);
-            font-size: 11px;
-            padding: 20px;
+            color: #666666;
+            font-size: 13px;
+            padding: 40px 20px;
+            line-height: 1.6;
         }
 
         .detection-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 4px;
+            margin-bottom: 8px;
         }
 
         .detection-time {
-            font-size: 9px;
-            opacity: 0.8;
+            font-size: 11px;
+            opacity: 0.7;
+            font-weight: 500;
+            color: #ffd700;
         }
 
         .detection-confidence {
-            background: rgba(255, 193, 7, 0.2);
-            color: #ffc107;
-            padding: 2px 6px;
-            border-radius: 8px;
-            font-size: 8px;
+            background: #000000;
+            border: 1px solid #ffd700;
+            color: #ffffff;
+            padding: 4px 8px;
+            border-radius: 10px;
+            font-size: 10px;
             font-weight: 600;
+            letter-spacing: 0.3px;
         }
 
         .detection-result {
-            font-weight: bold;
-            font-size: 11px;
-            margin-bottom: 2px;
+            font-weight: 600;
+            font-size: 13px;
+            margin-bottom: 4px;
+            color: #ffffff;
         }
 
         .detection-source {
-            font-size: 8px;
+            font-size: 11px;
             opacity: 0.7;
+            font-weight: 500;
+            color: #ffd700;
+        }
+
+        .accent-text {
+            color: #ff0000;
         }
     </style>
 </head>
@@ -354,25 +509,36 @@
     <!-- Main Page -->
     <div id="mainPage" class="page active">
         <div class="header">
-            <h1>🛡️ AI Voice Detector</h1>
-            <div id="status" class="status connected">✅ Ready</div>
+            <div class="logo">AI</div>
+            <h1>Voice Detector</h1>
+            <div id="status" class="status connected">System Ready</div>
         </div>
 
         <div class="controls">
-            <div class="instruction-box">
-                <div class="instruction-title">🖥️ How to Use</div>
+            <div class="instruction-card">
+                <div class="instruction-title">Setup Instructions</div>
                 <div class="instruction-steps">
-                    1. Click "Start Detection" below<br>
-                    2. Select the <strong>"Entire screen"</strong> tab<br>
-                    3. Click on your screen to select it<br>
-                    4. <strong>Check "Also share system audio"</strong><br>
-                    5. Click "Share" - that's it! ✅
+                    <div class="step">
+                        <div class="step-number">1</div>
+                        <div class="step-text">Click "Start Detection" below</div>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">2</div>
+                        <div class="step-text">Select <strong>"Entire screen"</strong> from the dialog</div>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">3</div>
+                        <div class="step-text">Enable <strong>"Share system audio"</strong> checkbox</div>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">4</div>
+                        <div class="step-text">Click "Share" to begin monitoring</div>
+                    </div>
                 </div>
             </div>
 
-            <button id="toggleBtn" class="main-button">🎙️ Start Detection</button>
-
-            <button id="historyBtn" class="secondary-button">📊 View History & Stats</button>
+            <button id="toggleBtn" class="main-button">Start Detection</button>
+            <button id="historyBtn" class="secondary-button">View Detection History</button>
         </div>
     </div>
 
@@ -384,18 +550,18 @@
         </div>
 
         <div class="history-controls">
-            <button id="clearBtn" class="clear-button">🗑️ Clear All History</button>
+            <button id="clearBtn" class="clear-button">Clear All History</button>
         </div>
 
-        <div class="stats">
-            <h3>📊 Statistics</h3>
+        <div class="stats-card">
+            <h3 class="stats-title">Detection Statistics</h3>
             <div class="stats-grid">
                 <div class="stat-item">
                     <span class="stat-number" id="totalDetections">0</span>
                     <span class="stat-label">Total</span>
                 </div>
                 <div class="stat-item">
-                    <span class="stat-number" id="fakeDetections">0</span>
+                    <span class="stat-number accent-text" id="fakeDetections">0</span>
                     <span class="stat-label">AI Voices</span>
                 </div>
                 <div class="stat-item">
@@ -409,13 +575,12 @@
             </div>
         </div>
 
-        <div class="detections">
-            <h3>🔍 Recent Detections</h3>
+        <div class="detections-section">
+            <h3 class="detections-title">Recent Detections</h3>
             <div id="detectionList" class="detection-list">
                 <div class="empty-state">
-                    🎤<br>
-                    No detections yet.<br>
-                    Start monitoring to see results!
+                    No detections recorded yet.<br>
+                    Start monitoring to see AI voice detection results.
                 </div>
             </div>
         </div>
