@@ -23,11 +23,11 @@ if (window.aiVoiceDetectorInjected) {
     
     const globalState = window.aiVoiceDetectorGlobalState;
 
-    // Anti-spam controls
+    // Anti-spam controls - REDUCED to be less aggressive
     let lastAlertTime = 0;
-    const ALERT_COOLDOWN = 5000; // 5 seconds between alerts
+    const ALERT_COOLDOWN = 4000; // 5 seconds between alerts
     let recentDetections = [];
-    const DETECTION_WINDOW = 10000; // 10 second window for duplicate detection
+    const DETECTION_WINDOW = 5000; // REDUCED from 10s to 5s window for duplicate detection
     let activeAlert = null; // Track current alert to prevent overlapping
 
     const HF_API_URL = 'https://pauliano22-deepfake-audio-detector.hf.space/gradio_api';
@@ -87,7 +87,7 @@ if (window.aiVoiceDetectorInjected) {
         
         try {
             // Show detailed instruction notification
-            showNotification('Screen Share Required', 'Click "Entire Screen"\nSelect your screen\nCheck "Also share system audio"\nClick "Share"', 15000);
+            showNotification('Screen Share Required', 'Click "Entire Screen"\nSelect your screen\nCheck "Also share system audio"\nClick "Share"', 10000);
             
             mediaStream = await navigator.mediaDevices.getDisplayMedia({
                 video: true,
@@ -187,8 +187,8 @@ if (window.aiVoiceDetectorInjected) {
                 lastVolumeLog = now;
             }
             
-            // Detect audio activity
-            const volumeThreshold = 0.01;
+            // Detect audio activity - LOWERED threshold for better sensitivity
+            const volumeThreshold = 0.005; // REDUCED from 0.01 to catch quieter audio
             const wasActiveAudio = isActiveAudio;
             isActiveAudio = volume > volumeThreshold;
             
@@ -203,26 +203,26 @@ if (window.aiVoiceDetectorInjected) {
             // 1. Audio just stopped (end of speech/AI voice)
             if (wasActiveAudio && !isActiveAudio) {
                 silenceStart = now;
-                if (bufferDuration >= 3) {
+                if (bufferDuration >= 2) { // REDUCED from 3 to 2 seconds
                     shouldAnalyze = true;
                     reason = 'audio stopped';
                 }
             }
             
-            // 2. We have 6+ seconds of continuous audio
-            if (bufferDuration >= 6 && isActiveAudio) {
+            // 2. We have 4+ seconds of continuous audio - REDUCED from 6 seconds
+            if (bufferDuration >= 4 && isActiveAudio) {
                 shouldAnalyze = true;
-                reason = '6+ seconds of active audio';
+                reason = '4+ seconds of active audio';
             }
             
-            // 3. Silence timeout (analyze after 4 seconds of silence)
-            if (!isActiveAudio && silenceStart > 0 && (now - silenceStart > 4000) && bufferDuration >= 2) {
+            // 3. Silence timeout (analyze after 3 seconds of silence) - REDUCED from 4 seconds
+            if (!isActiveAudio && silenceStart > 0 && (now - silenceStart > 3000) && bufferDuration >= 1.5) {
                 shouldAnalyze = true;
                 reason = 'silence timeout';
             }
             
-            // 4. Fallback: every 20 seconds regardless
-            if (now - lastAnalysisTime > 20000 && bufferDuration >= 3) {
+            // 4. Fallback: every 15 seconds regardless - REDUCED from 20 seconds
+            if (now - lastAnalysisTime > 15000 && bufferDuration >= 2) {
                 shouldAnalyze = true;
                 reason = 'time-based fallback';
             }
@@ -238,8 +238,8 @@ if (window.aiVoiceDetectorInjected) {
                 silenceStart = 0;
             }
             
-            // Prevent buffer overflow
-            if (bufferDuration > 12) {
+            // Prevent buffer overflow - INCREASED limit
+            if (bufferDuration > 15) { // INCREASED from 12 to 15 seconds
                 console.log(`⚠️ Audio buffer overflow, clearing`);
                 audioBuffer = [];
                 bufferDuration = 0;
@@ -321,8 +321,9 @@ if (window.aiVoiceDetectorInjected) {
             
             const volume = calculateRMS(combinedBuffer);
             
-            if (volume < 0.001) {
-                console.log(`🔇 Audio too quiet, skipping analysis`);
+            // LOWERED threshold to catch quieter audio
+            if (volume < 0.0005) { // REDUCED from 0.001 to 0.0005
+                console.log(`🔇 Audio too quiet, skipping analysis (volume: ${volume.toFixed(6)})`);
                 return;
             }
             
@@ -469,18 +470,20 @@ if (window.aiVoiceDetectorInjected) {
     function handleDetectionResult(result) {
         console.log('🎯 Handling detection result:', result);
         
-        // Check for duplicate/spam detection
+        // Check for duplicate/spam detection - MADE LESS AGGRESSIVE
         const now = Date.now();
-        const resultKey = `${result.prediction}-${Math.round(result.confidence * 10)}`;
+        const resultKey = `${result.prediction}-${Math.round(result.confidence * 20)}`; // MORE GRANULAR: *20 instead of *10
         
         // Clean old detections
         recentDetections = recentDetections.filter(det => now - det.time < DETECTION_WINDOW);
         
-        // Check if this is a duplicate
-        const isDuplicate = recentDetections.some(det => det.key === resultKey);
+        // ONLY ignore if EXACT same prediction AND confidence AND very recent (within 2 seconds)
+        const isDuplicate = recentDetections.some(det => 
+            det.key === resultKey && (now - det.time < 2000)
+        );
         
         if (isDuplicate) {
-            console.log('🔄 Duplicate detection ignored:', resultKey);
+            console.log('🔄 Recent duplicate detection ignored:', resultKey);
             return;
         }
         
@@ -490,17 +493,22 @@ if (window.aiVoiceDetectorInjected) {
             time: now
         });
         
-        // Store detection
-        chrome.storage.local.get(['detections'], (data) => {
-            const detections = data.detections || [];
-            detections.push(result);
-            
-            if (detections.length > 100) {
-                detections.splice(0, detections.length - 100);
-            }
-            
-            chrome.storage.local.set({ detections });
-        });
+        // Store detection - ADD ERROR HANDLING
+        try {
+            chrome.storage.local.get(['detections'], (data) => {
+                const detections = data.detections || [];
+                detections.push(result);
+                
+                if (detections.length > 100) {
+                    detections.splice(0, detections.length - 100);
+                }
+                
+                chrome.storage.local.set({ detections });
+            });
+        } catch (error) {
+            console.log('⚠️ Could not store detection (extension context issue):', error.message);
+            // Continue anyway - this isn't critical for detection alerts
+        }
         
         // Show alert with anti-spam protection
         if (result.is_suspicious && shouldShowAlert()) {
@@ -508,10 +516,18 @@ if (window.aiVoiceDetectorInjected) {
             lastAlertTime = now;
         }
         
-        chrome.runtime.sendMessage({
-            type: 'detectionResult',
-            result: result
-        }).catch(() => {});
+        // Send message to popup - ADD ERROR HANDLING
+        try {
+            chrome.runtime.sendMessage({
+                type: 'detectionResult',
+                result: result
+            }).catch(() => {
+                // Ignore - popup might not be open
+            });
+        } catch (error) {
+            console.log('⚠️ Could not send message to popup (extension context issue):', error.message);
+            // Continue anyway - the alert will still show
+        }
     }
 
     function shouldShowAlert() {
@@ -673,9 +689,9 @@ if (window.aiVoiceDetectorInjected) {
             font-weight: 600;
             z-index: 9999;
             max-width: 300px;
-            border: 1px solid #ff0000;
+            border: 1px solid red;
             backdrop-filter: blur(10px);
-            box-shadow: 0 8px 25px black;
+            box-shadow: 0 8px 25px red;
             line-height: 1.5;
             white-space: pre-line;
         `;
