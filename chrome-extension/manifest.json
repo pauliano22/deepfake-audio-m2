@@ -6,28 +6,27 @@
   "permissions": [
     "activeTab",
     "storage",
-    "notifications"
+    "notifications",
+    "scripting"
   ],
   "host_permissions": [
-    "http://localhost:8765/*"
+    "https://pauliano22-deepfake-audio-detector.hf.space/*",
+    "https://*/*",
+    "http://*/*"
   ],
   "background": {
     "service_worker": "background.js"
   },
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
+      "matches": ["https://*/*", "http://*/*"],
       "js": ["content.js"],
-      "run_at": "document_idle"
+      "run_at": "document_end",
+      "all_frames": false
     }
   ],
   "action": {
     "default_popup": "popup.html",
     "default_title": "AI Voice Detector"
-  },
-  "icons": {
-    "16": "icon16.png",
-    "48": "icon48.png",
-    "128": "icon128.png"
   }
 }

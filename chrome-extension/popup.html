@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        body {
+            width: 320px;
+            min-height: 350px;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0a0a0a;
+            color: white;
+            font-size: 13px;
+        }
+
+        .header {
+            padding: 20px;
+            text-align: center;
+            background: #111111;
+            border-bottom: 1px solid rgba(255, 193, 7, 0.2);
+        }
+
+        .header h1 {
+            margin: 0 0 8px 0;
+            font-size: 16px;
+            font-weight: 700;
+            color: #ffc107;
+        }
+
+        .status {
+            padding: 6px 14px;
+            border-radius: 15px;
+            font-size: 11px;
+            font-weight: 600;
+            display: inline-block;
+            border: 1px solid transparent;
+        }
+
+        .status.connected {
+            background: rgba(40, 167, 69, 0.2);
+            border-color: #28a745;
+            color: #28a745;
+        }
+
+        .status.monitoring {
+            background: rgba(255, 193, 7, 0.2);
+            border-color: #ffc107;
+            color: #ffc107;
+            animation: pulse 2s infinite;
+        }
+
+        .status.disconnected {
+            background: rgba(220, 53, 69, 0.2);
+            border-color: #dc3545;
+            color: #dc3545;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .active-methods {
+            margin-top: 8px;
+            padding: 6px 10px;
+            background: rgba(255, 193, 7, 0.1);
+            border-radius: 6px;
+            font-size: 10px;
+            display: none;
+            color: #ffc107;
+        }
+
+        .controls {
+            padding: 15px;
+        }
+
+        .main-button {
+            width: 100%;
+            background: linear-gradient(135deg, #ffc107, #ff8c00);
+            border: none;
+            color: #000000;
+            padding: 15px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            margin-bottom: 15px;
+        }
+
+        .main-button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(255, 193, 7, 0.3);
+        }
+
+        .main-button.danger {
+            background: linear-gradient(135deg, #dc3545, #c82333);
+            color: white;
+        }
+
+        .main-button.danger:hover {
+            box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+        }
+
+        .secondary-controls {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 193, 7, 0.3);
+            color: #ffc107;
+            padding: 8px 10px;
+            border-radius: 6px;
+            font-weight: 500;
+            cursor: pointer;
+            font-size: 11px;
+            flex: 1;
+            transition: all 0.3s ease;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 193, 7, 0.1);
+            border-color: #ffc107;
+        }
+
+        .btn-secondary:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .settings-section {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 193, 7, 0.2);
+            border-radius: 8px;
+            margin-bottom: 15px;
+            overflow: hidden;
+        }
+
+        .settings-header {
+            padding: 10px 12px;
+            background: rgba(255, 193, 7, 0.1);
+            border-bottom: 1px solid rgba(255, 193, 7, 0.2);
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            font-weight: 600;
+            color: #ffc107;
+        }
+
+        .settings-content {
+            padding: 12px;
+            display: none;
+        }
+
+        .settings-content.show {
+            display: block;
+        }
+
+        .setting-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            font-size: 11px;
+        }
+
+        .setting-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .setting-label {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+        }
+
+        .setting-name {
+            font-weight: 500;
+        }
+
+        .setting-desc {
+            font-size: 9px;
+            opacity: 0.7;
+            margin-top: 2px;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 40px;
+            height: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .toggle-switch.active {
+            background: #ffc107;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 16px;
+            height: 16px;
+            background: white;
+            border-radius: 50%;
+            transition: all 0.3s ease;
+        }
+
+        .toggle-switch.active .toggle-slider {
+            transform: translateX(20px);
+        }
+
+        .stats {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 193, 7, 0.2);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 15px;
+        }
+
+        .stats h3 {
+            margin: 0 0 10px 0;
+            font-size: 12px;
+            font-weight: 600;
+            text-align: center;
+            color: #ffc107;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr 1fr;
+            gap: 8px;
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 8px 4px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 6px;
+        }
+
+        .stat-number {
+            font-size: 16px;
+            font-weight: bold;
+            display: block;
+            color: #ffc107;
+        }
+
+        .stat-label {
+            font-size: 9px;
+            opacity: 0.8;
+            text-transform: uppercase;
+        }
+
+        .detections {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 193, 7, 0.2);
+            border-radius: 8px;
+            padding: 12px;
+        }
+
+        .detections h3 {
+            margin: 0 0 10px 0;
+            font-size: 12px;
+            font-weight: 600;
+            text-align: center;
+            color: #ffc107;
+        }
+
+        .detection-list {
+            max-height: 120px;
+            overflow-y: auto;
+        }
+
+        .detection-item {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 6px;
+            padding: 10px;
+            margin-bottom: 6px;
+            border-left: 3px solid transparent;
+        }
+
+        .detection-item.fake {
+            border-left-color: #dc3545;
+            background: rgba(220, 53, 69, 0.1);
+        }
+
+        .detection-item.real {
+            border-left-color: #28a745;
+            background: rgba(40, 167, 69, 0.1);
+        }
+
+        .detection-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border: 2px solid rgba(255, 193, 7, 0.3);
+            border-radius: 50%;
+            border-top-color: #ffc107;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .detection-list::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .detection-list::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .detection-list::-webkit-scrollbar-thumb {
+            background: #ffc107;
+            border-radius: 2px;
+        }
+
+        .empty-state {
+            text-align: center;
+            color: rgba(255,255,255,0.5);
+            font-size: 11px;
+            padding: 15px;
+        }
+
+        .detection-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 4px;
+        }
+
+        .detection-time {
+            font-size: 10px;
+            opacity: 0.8;
+        }
+
+        .detection-confidence {
+            background: rgba(255, 193, 7, 0.2);
+            color: #ffc107;
+            padding: 1px 6px;
+            border-radius: 10px;
+            font-size: 9px;
+            font-weight: 600;
+        }
+
+        .detection-result {
+            font-weight: bold;
+            font-size: 11px;
+        }
+
+        .detection-source {
+            font-size: 9px;
+            opacity: 0.7;
+        }
+
+        .chevron {
+            transition: transform 0.3s ease;
+        }
+
+        .chevron.rotated {
+            transform: rotate(180deg);
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🛡️ AI Voice Detector</h1>
+        <div id="status" class="status connected">✅ Ready</div>
+        <div id="activeMethods" class="active-methods" style="display: none;">
+            📡 Active: <strong>None</strong>
+        </div>
+    </div>
+
+    <div class="controls">
+        <button id="toggleBtn" class="main-button">🎙️ Start Listening</button>
+
+        <div class="secondary-controls">
+            <button id="testBtn" class="btn-secondary">🧪 Test</button>
+            <button id="clearBtn" class="btn-secondary">🗑️ Clear</button>
+        </div>
+
+        <div class="settings-section">
+            <div class="settings-header" id="settingsHeader">
+                <span>⚙️ Audio Sources</span>
+                <span class="chevron" id="settingsChevron">▼</span>
+            </div>
+            <div class="settings-content" id="settingsContent">
+                <div class="setting-item">
+                    <div class="setting-label">
+                        <div class="setting-name">🖥️ Screen Sharing</div>
+                        <div class="setting-desc">Best for most sites (works with headphones)</div>
+                    </div>
+                    <div class="toggle-switch active" id="toggleScreen">
+                        <div class="toggle-slider"></div>
+                    </div>
+                </div>
+                
+                <div class="setting-item">
+                    <div class="setting-label">
+                        <div class="setting-name">🎤 Microphone</div>
+                        <div class="setting-desc">Only works with speakers (not headphones)</div>
+                    </div>
+                    <div class="toggle-switch" id="toggleMic">
+                        <div class="toggle-slider"></div>
+                    </div>
+                </div>
+                
+                <div class="setting-item">
+                    <div class="setting-label">
+                        <div class="setting-name">🌐 Page Audio</div>
+                        <div class="setting-desc">Limited support (many sites block this)</div>
+                    </div>
+                    <div class="toggle-switch" id="togglePage">
+                        <div class="toggle-slider"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="stats">
+            <h3>📊 Stats</h3>
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <span class="stat-number" id="totalDetections">0</span>
+                    <span class="stat-label">Total</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-number" id="fakeDetections">0</span>
+                    <span class="stat-label">Fake</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-number" id="realDetections">0</span>
+                    <span class="stat-label">Real</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-number" id="suspiciousDetections">0</span>
+                    <span class="stat-label">Alerts</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="detections">
+            <h3>🔍 Recent</h3>
+            <div id="detectionList" class="detection-list">
+                <div class="empty-state">
+                    🎤<br>
+                    Start listening to begin!
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="popup.js"></script>
+</body>
+</html>
