@@ -1,18 +1,18 @@
-// content.js - Simplified screen audio capture only
-// Prevent multiple injections with stronger protection
+// content.js - Real-time streaming AI voice detection
 if (window.aiVoiceDetectorInjected) {
     console.log('🔄 AI Voice Detector already injected, skipping...');
-    throw new Error('Already injected'); // Forcefully stop execution
+    throw new Error('Already injected');
 } else {
     window.aiVoiceDetectorInjected = true;
-    console.log('🎤 AI Voice Detector - Screen Audio Capture');
+    console.log('🎤 AI Voice Detector - Real-Time Streaming');
 
     let isMonitoring = false;
     let audioContext;
     let mediaStream = null;
     let scriptProcessor = null;
+    let streamingInterval = null;
     
-    // GLOBAL state management to prevent double popups
+    // Global state management
     if (!window.aiVoiceDetectorGlobalState) {
         window.aiVoiceDetectorGlobalState = {
             screenShareRequested: false,
@@ -23,12 +23,25 @@ if (window.aiVoiceDetectorInjected) {
     
     const globalState = window.aiVoiceDetectorGlobalState;
 
-    // Anti-spam controls - REDUCED to be less aggressive
+    // Real-time streaming parameters
+    const STREAM_INTERVAL = 500; // Send audio every 500ms
+    const CHUNK_SIZE = 8000; // 0.5 seconds at 16kHz
+    const MIN_VOLUME_THRESHOLD = 0.001;
+    
+    // Anti-spam controls (more aggressive for real-time)
     let lastAlertTime = 0;
-    const ALERT_COOLDOWN = 4000; // 5 seconds between alerts
+    const ALERT_COOLDOWN = 2000; // 2 seconds between alerts
     let recentDetections = [];
-    const DETECTION_WINDOW = 5000; // REDUCED from 10s to 5s window for duplicate detection
-    let activeAlert = null; // Track current alert to prevent overlapping
+    const DETECTION_WINDOW = 2000; // 2 second window
+    let activeAlert = null;
+
+    // Streaming audio buffer
+    let streamingBuffer = [];
+    let bufferDuration = 0;
+    
+    // Performance tracking
+    let totalDetections = 0;
+    let detectionLatency = [];
 
     const HF_API_URL = 'https://pauliano22-deepfake-audio-detector.hf.space/gradio_api';
 
@@ -36,21 +49,21 @@ if (window.aiVoiceDetectorInjected) {
         console.log('📨 Message received:', request);
         
         if (request.action === 'startMonitoring') {
-            console.log('🖥️ Starting screen audio monitoring...');
+            console.log('🖥️ Starting real-time streaming monitoring...');
             
-            startScreenAudioCapture()
+            startRealTimeStreaming()
                 .then(() => {
-                    console.log('✅ Screen audio monitoring started');
+                    console.log('✅ Real-time streaming started');
                     sendResponse({ success: true, isMonitoring: true });
                 })
                 .catch(error => {
-                    console.error('❌ Screen audio capture failed:', error);
+                    console.error('❌ Real-time streaming failed:', error);
                     sendResponse({ success: false, error: error.message });
                 });
             return true;
             
         } else if (request.action === 'stopMonitoring') {
-            stopScreenAudioCapture();
+            stopRealTimeStreaming();
             sendResponse({ success: true, isMonitoring: false });
             
         } else if (request.action === 'getMonitoringState') {
@@ -60,7 +73,7 @@ if (window.aiVoiceDetectorInjected) {
         return true;
     });
 
-    async function startScreenAudioCapture() {
+    async function startRealTimeStreaming() {
         if (isMonitoring) {
             console.log('⚠️ Already monitoring');
             return;
@@ -68,26 +81,23 @@ if (window.aiVoiceDetectorInjected) {
 
         const now = Date.now();
         
-        // Aggressive prevention of multiple dialogs
         if (globalState.screenShareRequested || globalState.screenShareInProgress) {
             console.log('⚠️ Screen share blocked - already in progress');
-            throw new Error('Screen sharing request already in progress. Please wait or refresh the page.');
+            throw new Error('Screen sharing request already in progress.');
         }
         
-        // Additional time-based protection (prevent requests within 10 seconds)
-        if (now - globalState.requestTimestamp < 10000) {
+        if (now - globalState.requestTimestamp < 5000) {
             console.log('⚠️ Screen share blocked - too recent');
             throw new Error('Please wait a moment before requesting screen share again.');
         }
 
-        console.log('🖥️ Starting screen audio capture...');
+        console.log('🖥️ Starting real-time audio streaming...');
         globalState.screenShareRequested = true;
         globalState.screenShareInProgress = true;
         globalState.requestTimestamp = now;
         
         try {
-            // Show detailed instruction notification
-            showNotification('Screen Share Required', 'Click "Entire Screen"\nSelect your screen\nCheck "Also share system audio"\nClick "Share"', 10000);
+            showNotification('Real-Time Detection', 'Click "Entire Screen"\nSelect your screen\nCheck "Also share system audio"\nClick "Share"', 8000);
             
             mediaStream = await navigator.mediaDevices.getDisplayMedia({
                 video: true,
@@ -95,7 +105,7 @@ if (window.aiVoiceDetectorInjected) {
                     echoCancellation: false,
                     noiseSuppression: false,
                     autoGainControl: false,
-                    sampleRate: 22050,
+                    sampleRate: 16000, // Optimized for real-time
                     suppressLocalAudioPlayback: false
                 }
             });
@@ -103,41 +113,41 @@ if (window.aiVoiceDetectorInjected) {
             const audioTracks = mediaStream.getAudioTracks();
             const videoTracks = mediaStream.getVideoTracks();
             
-            console.log('🎥 Screen capture tracks:', {
+            console.log('🎥 Real-time capture setup:', {
                 audio: audioTracks.length,
                 video: videoTracks.length,
-                audioSettings: audioTracks[0]?.getSettings(),
-                videoLabel: videoTracks[0]?.label
+                audioSettings: audioTracks[0]?.getSettings()
             });
             
             if (audioTracks.length === 0) {
-                // Clean up video tracks
                 videoTracks.forEach(track => track.stop());
-                throw new Error('No system audio detected! You must select "Entire screen" and check "Also share system audio".');
+                throw new Error('No system audio detected! You must check "Also share system audio".');
             }
             
-            // Stop video tracks to save resources but keep audio
+            // Stop video tracks to save resources
             videoTracks.forEach(track => {
                 console.log('⏹️ Stopping video track to save resources');
                 track.stop();
             });
             
-            // Set up audio processing
-            setupAudioProcessing();
+            // Setup real-time audio processing
+            setupRealTimeAudioProcessing();
+            
+            // Start streaming interval
+            startStreamingInterval();
             
             // Handle stream ending
             audioTracks[0].addEventListener('ended', () => {
                 console.log('🔚 Screen sharing ended by user');
-                stopScreenAudioCapture();
+                stopRealTimeStreaming();
             });
             
             isMonitoring = true;
-            globalState.screenShareInProgress = false; // Clear the progress flag on success
-            console.log('✅ Screen audio capture active');
-            showNotification('Detection Active', 'Monitoring system audio for AI voices...', 3000);
+            globalState.screenShareInProgress = false;
+            console.log('✅ Real-time streaming active');
+            showNotification('Real-Time Detection Active', 'Continuous monitoring for AI voices...', 3000);
             
         } catch (error) {
-            // Reset ALL flags on any error
             globalState.screenShareRequested = false;
             globalState.screenShareInProgress = false;
             
@@ -146,30 +156,23 @@ if (window.aiVoiceDetectorInjected) {
             } else if (error.name === 'NotSupportedError') {
                 throw new Error('Screen sharing not supported in this browser.');
             } else if (error.name === 'AbortError') {
-                throw new Error('Screen sharing cancelled. Make sure to select "Entire screen" and check "Also share system audio".');
+                throw new Error('Screen sharing cancelled. Make sure to check "Also share system audio".');
             } else {
-                throw new Error(`Screen capture failed: ${error.message}`);
+                throw new Error(`Real-time streaming failed: ${error.message}`);
             }
         }
     }
 
-    function setupAudioProcessing() {
+    function setupRealTimeAudioProcessing() {
         if (!audioContext) {
             audioContext = new (window.AudioContext || window.webkitAudioContext)({
-                sampleRate: 22050
+                sampleRate: 16000
             });
         }
         
         const streamSource = audioContext.createMediaStreamSource(mediaStream);
-        scriptProcessor = audioContext.createScriptProcessor(4096, 1, 1);
+        scriptProcessor = audioContext.createScriptProcessor(1024, 1, 1); // Smaller buffer for real-time
         
-        let audioBuffer = [];
-        let bufferDuration = 0;
-        let lastAnalysisTime = 0;
-        let processedChunks = 0;
-        
-        let isActiveAudio = false;
-        let silenceStart = 0;
         let lastVolumeLog = 0;
         
         scriptProcessor.onaudioprocess = (event) => {
@@ -177,72 +180,27 @@ if (window.aiVoiceDetectorInjected) {
             
             const inputBuffer = event.inputBuffer;
             const inputData = inputBuffer.getChannelData(0);
-            
-            const volume = calculateRMS(inputData);
             const now = Date.now();
             
-            // Log volume periodically for debugging
-            if (now - lastVolumeLog > 10000) { // Every 10 seconds
-                console.log(`🔊 Screen audio volume: ${volume.toFixed(6)}`);
+            // Calculate volume
+            const volume = calculateRMS(inputData);
+            
+            // Log volume periodically
+            if (now - lastVolumeLog > 10000) {
+                console.log(`🔊 Real-time audio volume: ${volume.toFixed(6)}`);
                 lastVolumeLog = now;
             }
             
-            // Detect audio activity - LOWERED threshold for better sensitivity
-            const volumeThreshold = 0.005; // REDUCED from 0.01 to catch quieter audio
-            const wasActiveAudio = isActiveAudio;
-            isActiveAudio = volume > volumeThreshold;
-            
-            // Always collect audio data
-            audioBuffer.push(new Float32Array(inputData));
+            // Add to streaming buffer
+            streamingBuffer.push(new Float32Array(inputData));
             bufferDuration += inputBuffer.duration;
             
-            // Trigger analysis in these cases:
-            let shouldAnalyze = false;
-            let reason = '';
-            
-            // 1. Audio just stopped (end of speech/AI voice)
-            if (wasActiveAudio && !isActiveAudio) {
-                silenceStart = now;
-                if (bufferDuration >= 2) { // REDUCED from 3 to 2 seconds
-                    shouldAnalyze = true;
-                    reason = 'audio stopped';
+            // Keep buffer size manageable (max 2 seconds)
+            while (bufferDuration > 2.0) {
+                const removedChunk = streamingBuffer.shift();
+                if (removedChunk) {
+                    bufferDuration -= removedChunk.length / 16000;
                 }
-            }
-            
-            // 2. We have 4+ seconds of continuous audio - REDUCED from 6 seconds
-            if (bufferDuration >= 4 && isActiveAudio) {
-                shouldAnalyze = true;
-                reason = '4+ seconds of active audio';
-            }
-            
-            // 3. Silence timeout (analyze after 3 seconds of silence) - REDUCED from 4 seconds
-            if (!isActiveAudio && silenceStart > 0 && (now - silenceStart > 3000) && bufferDuration >= 1.5) {
-                shouldAnalyze = true;
-                reason = 'silence timeout';
-            }
-            
-            // 4. Fallback: every 15 seconds regardless - REDUCED from 20 seconds
-            if (now - lastAnalysisTime > 15000 && bufferDuration >= 2) {
-                shouldAnalyze = true;
-                reason = 'time-based fallback';
-            }
-            
-            // Analyze if triggered
-            if (shouldAnalyze) {
-                processedChunks++;
-                console.log(`🔄 Processing chunk #${processedChunks}: ${reason} (${bufferDuration.toFixed(1)}s, volume: ${volume.toFixed(6)})`);
-                analyzeAudioBuffer([...audioBuffer]);
-                lastAnalysisTime = now;
-                audioBuffer = [];
-                bufferDuration = 0;
-                silenceStart = 0;
-            }
-            
-            // Prevent buffer overflow - INCREASED limit
-            if (bufferDuration > 15) { // INCREASED from 12 to 15 seconds
-                console.log(`⚠️ Audio buffer overflow, clearing`);
-                audioBuffer = [];
-                bufferDuration = 0;
             }
         };
         
@@ -250,66 +208,76 @@ if (window.aiVoiceDetectorInjected) {
         scriptProcessor.connect(audioContext.destination);
     }
 
-    function stopScreenAudioCapture() {
-        if (!isMonitoring) return;
+    function startStreamingInterval() {
+        let chunkCount = 0;
         
-        console.log('⏹️ Stopping screen audio capture...');
-        
-        // Clear anti-spam data
-        lastAlertTime = 0;
-        recentDetections = [];
-        if (activeAlert) {
-            activeAlert.remove();
-            activeAlert = null;
-        }
-        
-        // Stop script processor
-        if (scriptProcessor) {
-            try {
-                scriptProcessor.disconnect();
-            } catch (e) {}
-            scriptProcessor = null;
-        }
-        
-        // Stop media stream
-        if (mediaStream) {
-            mediaStream.getTracks().forEach(track => {
-                console.log('⏹️ Stopping track:', track.label);
-                track.stop();
-            });
-            mediaStream = null;
-        }
-        
-        // Close audio context
-        if (audioContext && audioContext.state !== 'closed') {
-            audioContext.close();
-            audioContext = null;
-        }
-        
-        // Reset all flags including global state
-        isMonitoring = false;
-        if (globalState) {
-            globalState.screenShareRequested = false;
-            globalState.screenShareInProgress = false;
-        }
-        
-        console.log('✅ Screen audio monitoring stopped');
-        
-        showNotification('Monitoring Stopped', 'Screen audio capture stopped');
+        streamingInterval = setInterval(() => {
+            if (!isMonitoring || streamingBuffer.length === 0) return;
+            
+            // Calculate current volume
+            const currentVolume = streamingBuffer.length > 0 ? 
+                calculateRMS(streamingBuffer[streamingBuffer.length - 1]) : 0;
+            
+            // Skip if audio is too quiet
+            if (currentVolume < MIN_VOLUME_THRESHOLD) {
+                console.log(`🔇 Audio too quiet, skipping stream (${currentVolume.toFixed(6)})`);
+                return;
+            }
+            
+            // Get current buffer state
+            const bufferCopy = [...streamingBuffer];
+            const duration = bufferDuration;
+            
+            // Need at least 0.5 seconds of audio
+            if (duration < 0.5) {
+                console.log(`⏳ Insufficient audio (${duration.toFixed(1)}s), waiting...`);
+                return;
+            }
+            
+            chunkCount++;
+            console.log(`🎵 Streaming chunk #${chunkCount} (${duration.toFixed(1)}s, volume: ${currentVolume.toFixed(6)})`);
+            
+            // Process this chunk
+            processStreamingChunk(bufferCopy, chunkCount);
+            
+            // Keep some overlap for context (keep last 0.5s)
+            const overlapDuration = 0.5;
+            const overlapSamples = Math.floor(overlapDuration * 16000);
+            
+            // Calculate how much to remove
+            let samplesToRemove = 0;
+            let removedDuration = 0;
+            
+            for (let i = 0; i < streamingBuffer.length; i++) {
+                const chunkSamples = streamingBuffer[i].length;
+                const chunkDuration = chunkSamples / 16000;
+                
+                if (removedDuration + chunkDuration < duration - overlapDuration) {
+                    samplesToRemove += chunkSamples;
+                    removedDuration += chunkDuration;
+                } else {
+                    break;
+                }
+            }
+            
+            // Remove processed audio but keep overlap
+            let removedSamples = 0;
+            while (removedSamples < samplesToRemove && streamingBuffer.length > 0) {
+                const chunk = streamingBuffer.shift();
+                if (chunk) {
+                    removedSamples += chunk.length;
+                    bufferDuration -= chunk.length / 16000;
+                }
+            }
+            
+        }, STREAM_INTERVAL);
     }
 
-    // Cleanup function for global access
-    window.aiVoiceDetectorCleanup = function() {
-        stopScreenAudioCapture();
-        if (globalState) {
-            globalState.screenShareRequested = false;
-            globalState.screenShareInProgress = false;
-            globalState.requestTimestamp = 0;
-        }
-    };
-
-    async function analyzeAudioBuffer(audioBuffer) {
+    async function processStreamingChunk(audioBuffer, chunkId) {
+        const startTime = Date.now();
+        
         try {
+            // Combine audio chunks
             const totalLength = audioBuffer.reduce((sum, chunk) => sum + chunk.length, 0);
             const combinedBuffer = new Float32Array(totalLength);
             
@@ -319,40 +287,44 @@ if (window.aiVoiceDetectorInjected) {
                 offset += chunk.length;
             }
             
-            const volume = calculateRMS(combinedBuffer);
+            // Create optimized WAV blob
+            const wavBlob = createStreamingWAVBlob(combinedBuffer, 16000);
+            console.log(`📦 Streaming analysis #${chunkId}: ${wavBlob.size} bytes`);
             
-            // LOWERED threshold to catch quieter audio
-            if (volume < 0.0005) { // REDUCED from 0.001 to 0.0005
-                console.log(`🔇 Audio too quiet, skipping analysis (volume: ${volume.toFixed(6)})`);
-                return;
-            }
-            
-            const wavBlob = createWAVBlob(combinedBuffer, 22050);
-            console.log(`📦 Analyzing audio: ${wavBlob.size} bytes`);
-            
-            const result = await sendToHuggingFaceAPI(wavBlob);
+            const result = await sendToStreamingAPI(wavBlob);
             
             if (result && !result.error) {
-                console.log(`🎯 Detection result:`, result);
-                result.source = 'Screen Audio';
-                handleDetectionResult(result);
+                const latency = Date.now() - startTime;
+                detectionLatency.push(latency);
+                
+                console.log(`🎯 Streaming result #${chunkId}:`, result, `(${latency}ms)`);
+                
+                result.source = 'Real-Time Stream';
+                result.chunkId = chunkId;
+                result.latency = latency;
+                
+                handleStreamingResult(result);
             } else {
-                console.error(`❌ API error:`, result?.error);
+                console.error(`❌ Streaming API error #${chunkId}:`, result?.error);
             }
             
         } catch (error) {
-            console.error(`❌ Analysis failed:`, error);
+            console.error(`❌ Streaming analysis failed #${chunkId}:`, error);
         }
     }
 
-    async function sendToHuggingFaceAPI(audioBlob) {
+    async function sendToStreamingAPI(audioBlob) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout for streaming
+        
         try {
             const formData = new FormData();
-            formData.append('files', audioBlob, 'audio.wav');
+            formData.append('files', audioBlob, 'stream.wav');
             
             const uploadResponse = await fetch(`${HF_API_URL}/upload`, {
                 method: 'POST',
-                body: formData
+                body: formData,
+                signal: controller.signal
             });
             
             if (!uploadResponse.ok) {
@@ -370,7 +342,8 @@ if (window.aiVoiceDetectorInjected) {
                         path: filePath,
                         meta: { _type: "gradio.FileData" }
                     }]
-                })
+                }),
+                signal: controller.signal
             });
             
             if (!predictionResponse.ok) {
@@ -378,24 +351,31 @@ if (window.aiVoiceDetectorInjected) {
             }
             
             const predictionResult = await predictionResponse.json();
-            const eventId = predictionResult.event_id;
+            const rawResult = await pollStreamingResults(predictionResult.event_id, controller.signal);
             
-            const rawResult = await pollForResults(eventId);
-            return parseHuggingFaceResult(rawResult);
+            return parseStreamingResult(rawResult);
             
         } catch (error) {
-            console.error('❌ HuggingFace API error:', error);
+            if (error.name === 'AbortError') {
+                return { error: 'Stream timeout' };
+            }
             return { error: error.message };
+        } finally {
+            clearTimeout(timeoutId);
         }
     }
 
-    async function pollForResults(eventId) {
-        const maxAttempts = 20;
+    async function pollStreamingResults(eventId, signal) {
+        const maxAttempts = 10; // Reduced for faster streaming
         
         for (let attempt = 0; attempt < maxAttempts; attempt++) {
             try {
-                const response = await fetch(`${HF_API_URL}/call/predict/${eventId}`);
-                if (!response.ok) continue;
+                const response = await fetch(`${HF_API_URL}/call/predict/${eventId}`, { signal });
+                
+                if (!response.ok) {
+                    await new Promise(resolve => setTimeout(resolve, 200));
+                    continue;
+                }
                 
                 const reader = response.body.getReader();
                 const decoder = new TextDecoder();
@@ -428,16 +408,16 @@ if (window.aiVoiceDetectorInjected) {
                 }
                 
             } catch (error) {
-                console.warn(`Polling attempt ${attempt + 1} failed:`, error);
+                if (error.name === 'AbortError') throw error;
             }
             
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            await new Promise(resolve => setTimeout(resolve, 300));
         }
         
-        throw new Error('Polling timeout');
+        throw new Error('Streaming poll timeout');
     }
 
-    function parseHuggingFaceResult(markdownResult) {
+    function parseStreamingResult(markdownResult) {
         try {
             const realMatch = markdownResult.match(/Real Voice.*?(\d+\.\d+)%/i);
             const fakeMatch = markdownResult.match(/AI Generated.*?(\d+\.\d+)%/i);
@@ -451,14 +431,14 @@ if (window.aiVoiceDetectorInjected) {
                 prediction: isFake ? 'FAKE' : 'REAL',
                 confidence: Math.max(realProb, fakeProb),
                 probabilities: { real: realProb, fake: fakeProb },
-                is_suspicious: fakeProb > 0.6,
+                is_suspicious: fakeProb > 0.6, // Streaming threshold
                 raw_result: markdownResult,
                 timestamp: new Date().toISOString(),
                 url: window.location.href
             };
             
         } catch (error) {
-            console.error('❌ Result parsing error:', error);
+            console.error('❌ Streaming result parsing error:', error);
             return {
                 prediction: 'UNKNOWN',
                 confidence: 0.5,
@@ -467,78 +447,71 @@ if (window.aiVoiceDetectorInjected) {
         }
     }
 
-    function handleDetectionResult(result) {
-        console.log('🎯 Handling detection result:', result);
+    function handleStreamingResult(result) {
+        totalDetections++;
+        console.log(`🎯 Processing streaming result #${totalDetections}:`, result);
         
-        // Check for duplicate/spam detection - MADE LESS AGGRESSIVE
+        // Less aggressive duplicate detection for streaming
         const now = Date.now();
-        const resultKey = `${result.prediction}-${Math.round(result.confidence * 20)}`; // MORE GRANULAR: *20 instead of *10
+        const resultKey = `${result.prediction}-${Math.round(result.confidence * 20)}`;
         
-        // Clean old detections
         recentDetections = recentDetections.filter(det => now - det.time < DETECTION_WINDOW);
         
-        // ONLY ignore if EXACT same prediction AND confidence AND very recent (within 2 seconds)
+        // Only block if very recent and identical
         const isDuplicate = recentDetections.some(det => 
-            det.key === resultKey && (now - det.time < 2000)
+            det.key === resultKey && (now - det.time < 1000)
         );
         
         if (isDuplicate) {
-            console.log('🔄 Recent duplicate detection ignored:', resultKey);
+            console.log('🔄 Duplicate streaming detection ignored:', resultKey);
             return;
         }
         
-        // Add to recent detections
-        recentDetections.push({
-            key: resultKey,
-            time: now
-        });
+        recentDetections.push({ key: resultKey, time: now });
         
-        // Store detection - ADD ERROR HANDLING
+        // Store detection
         try {
             chrome.storage.local.get(['detections'], (data) => {
                 const detections = data.detections || [];
                 detections.push(result);
                 
-                if (detections.length > 100) {
-                    detections.splice(0, detections.length - 100);
+                if (detections.length > 150) { // Higher limit for streaming
+                    detections.splice(0, detections.length - 150);
                 }
                 
                 chrome.storage.local.set({ detections });
             });
         } catch (error) {
-            console.log('⚠️ Could not store detection (extension context issue):', error.message);
-            // Continue anyway - this isn't critical for detection alerts
+            console.log('⚠️ Could not store detection:', error.message);
         }
         
-        // Show alert with anti-spam protection
-        if (result.is_suspicious && shouldShowAlert()) {
-            showDeepfakeAlert(result);
+        // Show real-time alert
+        if (result.is_suspicious && shouldShowStreamingAlert()) {
+            showStreamingDeepfakeAlert(result);
             lastAlertTime = now;
         }
         
-        // Send message to popup - ADD ERROR HANDLING
+        // Send to popup
         try {
             chrome.runtime.sendMessage({
-                type: 'detectionResult',
-                result: result
-            }).catch(() => {
-                // Ignore - popup might not be open
-            });
+                type: 'streamingDetectionResult',
+                result: result,
+                totalDetections: totalDetections,
+                averageLatency: detectionLatency.slice(-10).reduce((a, b) => a + b, 0) / Math.min(detectionLatency.length, 10)
+            }).catch(() => {});
         } catch (error) {
-            console.log('⚠️ Could not send message to popup (extension context issue):', error.message);
-            // Continue anyway - the alert will still show
+            console.log('⚠️ Could not send streaming message:', error.message);
         }
     }
 
-    function shouldShowAlert() {
+    function shouldShowStreamingAlert() {
         const now = Date.now();
         return now - lastAlertTime >= ALERT_COOLDOWN && !activeAlert;
     }
 
-    function showDeepfakeAlert(result) {
-        console.log('🚨 DEEPFAKE DETECTED!');
+    function showStreamingDeepfakeAlert(result) {
+        console.log('🚨 REAL-TIME DEEPFAKE DETECTED!');
         
-        // Remove any existing alert
         if (activeAlert) {
             activeAlert.remove();
         }
@@ -550,62 +523,64 @@ if (window.aiVoiceDetectorInjected) {
             position: fixed;
             top: 20px;
             right: 20px;
-            background: black;
+            background: linear-gradient(135deg, #ff0000, #cc0000);
             color: white;
-            padding: 20px;
+            padding: 18px 22px;
             border-radius: 12px;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
             font-weight: 600;
             z-index: 10000;
-            box-shadow: 0 8px 5px rgba(239, 68, 68, 0.4);
-            max-width: 320px;
-            border: 1px solid red;
+            box-shadow: 0 8px 25px rgba(255, 0, 0, 0.4);
+            max-width: 340px;
+            border: 2px solid #ff4444;
             backdrop-filter: blur(10px);
-            animation: alertSlideIn 0.4s ease-out;
+            animation: streamingAlertSlide 0.3s ease-out;
         `;
         
+        const avgLatency = detectionLatency.slice(-5).reduce((a, b) => a + b, 0) / Math.min(detectionLatency.length, 5);
+        
         alert.innerHTML = `
-            <div style="font-size: 16px; font-weight: 700; margin-bottom: 8px;">
-                AI Detected
+            <div style="font-size: 17px; font-weight: 700; margin-bottom: 10px;">
+                ⚡ REAL-TIME AI DETECTED
             </div>
-            <div style="font-size: 13px; margin-bottom: 12px; opacity: 0.9; line-height: 1.4;">
+            <div style="font-size: 13px; margin-bottom: 14px; opacity: 0.95; line-height: 1.5;">
                 Confidence: ${(result.confidence * 100).toFixed(1)}%<br>
-                Source: System Audio
+                Detection Time: ${result.latency || 'N/A'}ms<br>
+                Chunk: #${result.chunkId || 'N/A'}
             </div>
-            <button id="dismissAlert" 
-                    style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); 
+            <button id="dismissStreamingAlert" 
+                    style="background: rgba(255, 255, 255, 0.25); border: 1px solid rgba(255, 255, 255, 0.4); 
                            color: white; padding: 8px 16px; border-radius: 6px; 
                            cursor: pointer; font-weight: 600; font-size: 12px; 
-                           transition: all 0.2s ease; backdrop-filter: blur(10px);">
+                           transition: all 0.2s ease;">
                 Dismiss
             </button>
         `;
         
-        // Add working dismiss button event listener
-        const dismissBtn = alert.querySelector('#dismissAlert');
-        dismissBtn.addEventListener('click', function() {
+        const dismissBtn = alert.querySelector('#dismissStreamingAlert');
+        dismissBtn.addEventListener('click', () => {
             if (alert.parentElement) {
                 alert.remove();
                 activeAlert = null;
             }
         });
         
-        dismissBtn.addEventListener('mouseover', function() {
-            this.style.background = 'rgba(255, 255, 255, 0.3)';
+        dismissBtn.addEventListener('mouseover', () => {
+            dismissBtn.style.background = 'rgba(255, 255, 255, 0.35)';
         });
         
-        dismissBtn.addEventListener('mouseout', function() {
-            this.style.background = 'rgba(255, 255, 255, 0.2)';
+        dismissBtn.addEventListener('mouseout', () => {
+            dismissBtn.style.background = 'rgba(255, 255, 255, 0.25)';
         });
         
-        // Add animation
-        if (!document.getElementById('alert-styles')) {
+        // Add streaming animation
+        if (!document.getElementById('streaming-alert-styles')) {
             const style = document.createElement('style');
-            style.id = 'alert-styles';
+            style.id = 'streaming-alert-styles';
             style.textContent = `
-                @keyframes alertSlideIn {
+                @keyframes streamingAlertSlide {
                     from { 
-                        transform: translateX(100%) scale(0.9); 
+                        transform: translateX(100%) scale(0.95); 
                         opacity: 0; 
                     }
                     to { 
@@ -619,7 +594,7 @@ if (window.aiVoiceDetectorInjected) {
         
         document.body.appendChild(alert);
         
-        // Auto-dismiss after 12 seconds
+        // Auto-dismiss after 8 seconds
         setTimeout(() => {
             if (alert.parentElement) {
                 alert.remove();
@@ -627,7 +602,70 @@ if (window.aiVoiceDetectorInjected) {
                     activeAlert = null;
                 }
             }
-        }, 12000);
+        }, 8000);
+    }
+
+    function stopRealTimeStreaming() {
+        if (!isMonitoring) return;
+        
+        console.log('⏹️ Stopping real-time streaming...');
+        
+        // Clear streaming interval
+        if (streamingInterval) {
+            clearInterval(streamingInterval);
+            streamingInterval = null;
+        }
+        
+        // Clear buffers
+        streamingBuffer = [];
+        bufferDuration = 0;
+        
+        // Clear detection data
+        lastAlertTime = 0;
+        recentDetections = [];
+        if (activeAlert) {
+            activeAlert.remove();
+            activeAlert = null;
+        }
+        
+        // Stop audio processing
+        if (scriptProcessor) {
+            try {
+                scriptProcessor.disconnect();
+            } catch (e) {}
+            scriptProcessor = null;
+        }
+        
+        // Stop media stream
+        if (mediaStream) {
+            mediaStream.getTracks().forEach(track => {
+                console.log('⏹️ Stopping streaming track:', track.label);
+                track.stop();
+            });
+            mediaStream = null;
+        }
+        
+        // Close audio context
+        if (audioContext && audioContext.state !== 'closed') {
+            audioContext.close();
+            audioContext = null;
+        }
+        
+        // Reset state
+        isMonitoring = false;
+        if (globalState) {
+            globalState.screenShareRequested = false;
+            globalState.screenShareInProgress = false;
+        }
+        
+        console.log('✅ Real-time streaming stopped');
+        console.log(`📊 Session stats: ${totalDetections} detections, avg latency: ${detectionLatency.length ? (detectionLatency.reduce((a, b) => a + b, 0) / detectionLatency.length).toFixed(0) : 'N/A'}ms`);
+        
+        // Reset counters
+        totalDetections = 0;
+        detectionLatency = [];
+        
+        showNotification('Real-Time Detection Stopped', 'Streaming monitoring stopped');
     }
 
     function calculateRMS(audioData) {
@@ -638,10 +676,11 @@ if (window.aiVoiceDetectorInjected) {
         return Math.sqrt(sum / audioData.length);
     }
 
-    function createWAVBlob(audioBuffer, sampleRate) {
+    function createStreamingWAVBlob(audioBuffer, sampleRate) {
+        // Use 16-bit PCM for streaming - balance between quality and speed
         const pcmBuffer = new Int16Array(audioBuffer.length);
         for (let i = 0; i < audioBuffer.length; i++) {
-            pcmBuffer[i] = Math.max(-32768, Math.min(32767, audioBuffer[i] * 32768));
+            pcmBuffer[i] = Math.max(-32768, Math.min(32767, audioBuffer[i] * 32767));
         }
         
         const buffer = new ArrayBuffer(44 + pcmBuffer.length * 2);
@@ -680,7 +719,7 @@ if (window.aiVoiceDetectorInjected) {
             position: fixed;
             top: 20px;
             left: 20px;
-            background: black;
+            background: linear-gradient(135deg, #000000, #333333);
             color: white;
             padding: 16px 20px;
             border-radius: 12px;
@@ -689,14 +728,14 @@ if (window.aiVoiceDetectorInjected) {
             font-weight: 600;
             z-index: 9999;
             max-width: 300px;
-            border: 1px solid red;
+            border: 2px solid #ff0000;
             backdrop-filter: blur(10px);
-            box-shadow: 0 8px 5px red;
+            box-shadow: 0 8px 25px rgba(255, 0, 0, 0.3);
             line-height: 1.5;
             white-space: pre-line;
         `;
         
-        notification.innerHTML = `<div style="font-weight: 700; margin-bottom: 4px;">${title}</div><div style="opacity: 0.9;">${message}</div>`;
+        notification.innerHTML = `<div style="font-weight: 700; margin-bottom: 4px;">⚡ ${title}</div><div style="opacity: 0.9;">${message}</div>`;
         document.body.appendChild(notification);
         
         setTimeout(() => {
@@ -704,5 +743,15 @@ if (window.aiVoiceDetectorInjected) {
         }, duration);
     }
 
-    console.log('✅ AI Voice Detector ready - Screen Audio Only!');
+    // Cleanup function
+    window.aiVoiceDetectorCleanup = function() {
+        stopRealTimeStreaming();
+        if (globalState) {
+            globalState.screenShareRequested = false;
+            globalState.screenShareInProgress = false;
+            globalState.requestTimestamp = 0;
+        }
+    };
+
+    console.log('✅ Real-Time Streaming AI Voice Detector Ready!');
 }
