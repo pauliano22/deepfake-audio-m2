@@ -87,7 +87,7 @@ if (window.aiVoiceDetectorInjected) {
         
         try {
             // Show detailed instruction notification
-            showNotification('Screen Share Required', 'Select your screen from the list\nCheck "Also share system audio"\nClick "Share"', 10000);
+            showNotification('Screen Share Required', 'Click "Entire Screen"\nSelect your screen\nCheck "Also share system audio"\nClick "Share"', 15000);
             
             mediaStream = await navigator.mediaDevices.getDisplayMedia({
                 video: true,
@@ -534,7 +534,7 @@ if (window.aiVoiceDetectorInjected) {
             position: fixed;
             top: 20px;
             right: 20px;
-            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            background: black;
             color: white;
             padding: 20px;
             border-radius: 12px;
@@ -543,7 +543,7 @@ if (window.aiVoiceDetectorInjected) {
             z-index: 10000;
             box-shadow: 0 8px 25px rgba(239, 68, 68, 0.4);
             max-width: 320px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            border: 1px solid red;
             backdrop-filter: blur(10px);
             animation: alertSlideIn 0.4s ease-out;
         `;
@@ -664,7 +664,7 @@ if (window.aiVoiceDetectorInjected) {
             position: fixed;
             top: 20px;
             left: 20px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: black;
             color: white;
             padding: 16px 20px;
             border-radius: 12px;
@@ -673,9 +673,9 @@ if (window.aiVoiceDetectorInjected) {
             font-weight: 600;
             z-index: 9999;
             max-width: 300px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            border: 1px solid #ff0000;
             backdrop-filter: blur(10px);
-            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+            box-shadow: 0 8px 25px black;
             line-height: 1.5;
             white-space: pre-line;
         `;
