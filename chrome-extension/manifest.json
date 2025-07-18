@@ -2,31 +2,20 @@
   "manifest_version": 3,
   "name": "AI Voice Detector",
   "version": "1.0",
-  "description": "Detects AI-generated voices in web audio with 90%+ accuracy",
-  "permissions": [
-    "activeTab",
-    "storage",
-    "notifications",
-    "scripting"
-  ],
-  "host_permissions": [
-    "https://pauliano22-deepfake-audio-detector.hf.space/*",
-    "https://*/*",
-    "http://*/*"
-  ],
-  "background": {
-    "service_worker": "background.js"
-  },
-  "content_scripts": [
-    {
-      "matches": ["https://*/*", "http://*/*"],
-      "js": ["content.js"],
-      "run_at": "document_end",
-      "all_frames": false
-    }
-  ],
+  "description": "Real-time detection of AI-generated voices",
+  "permissions": ["activeTab", "scripting", "storage"],
+  "host_permissions": ["<all_urls>"],
   "action": {
     "default_popup": "popup.html",
-    "default_title": "AI Voice Detector"
+    "default_icon": {
+      "16": "icon16.png",
+      "48": "icon48.png",
+      "128": "icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icon16.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
   }
 }
