@@ -1,94 +1,29 @@
-// popup.js - Simple multi-method with settings
+// popup.js - Simplified AI Voice Detector popup
 let isMonitoring = false;
-let activeMethods = [];
-
-// Default settings - Screen sharing as primary method
-let settings = {
-    enableScreenCapture: true,
-    enableMicrophone: false,  // Off by default (doesn't work with headphones)
-    enablePageAudio: false    // Off by default (limited support)
-};
+let currentPage = 'main';
 
 document.addEventListener('DOMContentLoaded', async () => {
-    console.log('🚀 AI Voice Detector popup loaded - Simple multi-method');
+    console.log('🚀 AI Voice Detector popup loaded - Simplified version');
     
-    await loadSettings();
     await checkAPIStatus();
-    await loadDetectionHistory();
     await checkCurrentState();
     
-    // Set up event listeners
+    // Set up main page event listeners
     document.getElementById('toggleBtn').addEventListener('click', toggleMonitoring);
-    document.getElementById('testBtn').addEventListener('click', testDetection);
+    document.getElementById('historyBtn').addEventListener('click', showHistoryPage);
+    
+    // Set up history page event listeners
+    document.getElementById('backBtn').addEventListener('click', showMainPage);
     document.getElementById('clearBtn').addEventListener('click', clearHistory);
     
-    // Settings panel toggle
-    document.getElementById('settingsHeader').addEventListener('click', toggleSettings);
-    
-    // Settings toggles
-    document.getElementById('toggleScreen').addEventListener('click', () => toggleSetting('enableScreenCapture'));
-    document.getElementById('toggleMic').addEventListener('click', () => toggleSetting('enableMicrophone'));
-    document.getElementById('togglePage').addEventListener('click', () => toggleSetting('enablePageAudio'));
-    
-    // Auto-refresh every 5 seconds
+    // Auto-refresh current state every 3 seconds
     setInterval(() => {
-        loadDetectionHistory();
         checkCurrentState();
-    }, 5000);
-});
-
-async function loadSettings() {
-    return new Promise((resolve) => {
-        chrome.storage.local.get(['audioSettings'], (data) => {
-            if (data.audioSettings) {
-                settings = { ...settings, ...data.audioSettings };
-            }
-            updateSettingsUI();
-            resolve();
-        });
-    });
-}
-
-async function saveSettings() {
-    return new Promise((resolve) => {
-        chrome.storage.local.set({ audioSettings: settings }, resolve);
-    });
-}
-
-function updateSettingsUI() {
-    document.getElementById('toggleScreen').classList.toggle('active', settings.enableScreenCapture);
-    document.getElementById('toggleMic').classList.toggle('active', settings.enableMicrophone);
-    document.getElementById('togglePage').classList.toggle('active', settings.enablePageAudio);
-}
-
-function toggleSettings() {
-    const content = document.getElementById('settingsContent');
-    const chevron = document.getElementById('settingsChevron');
-    
-    content.classList.toggle('show');
-    chevron.classList.toggle('rotated');
-}
-
-async function toggleSetting(settingName) {
-    settings[settingName] = !settings[settingName];
-    updateSettingsUI();
-    await saveSettings();
-    
-    // Send updated settings to content script if monitoring
-    if (isMonitoring) {
-        try {
-            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-            if (tab && tab.id) {
-                await sendMessageToTab(tab.id, { 
-                    action: 'updateSettings', 
-                    settings: settings 
-                });
-            }
-        } catch (error) {
-            console.log('Could not update settings in content script:', error);
+        if (currentPage === 'history') {
+            loadDetectionHistory();
         }
-    }
-}
+    }, 3000);
+});
 
 async function checkAPIStatus() {
     const statusEl = document.getElementById('status');
@@ -123,17 +58,14 @@ async function checkCurrentState() {
         
         if (response && response.isMonitoring) {
             isMonitoring = true;
-            activeMethods = response.methods || [];
             updateUIForMonitoring(true);
         } else {
             isMonitoring = false;
-            activeMethods = [];
             updateUIForMonitoring(false);
         }
         
     } catch (error) {
         isMonitoring = false;
-        activeMethods = [];
         updateUIForMonitoring(false);
     }
 }
@@ -159,17 +91,11 @@ async function toggleMonitoring() {
             await sendMessageToTab(tab.id, { action: 'stopMonitoring' });
             
             isMonitoring = false;
-            activeMethods = [];
             updateUIForMonitoring(false);
             
         } else {
             // Start monitoring
             btn.innerHTML = '<span class="loading"></span> Starting...';
-            
-            // Check if at least one method is enabled
-            if (!settings.enableScreenCapture && !settings.enableMicrophone && !settings.enablePageAudio) {
-                throw new Error('Enable at least one audio source in settings');
-            }
             
             // Inject content script
             await injectContentScript(tab.id);
@@ -179,7 +105,6 @@ async function toggleMonitoring() {
             
             if (response && response.success) {
                 isMonitoring = true;
-                activeMethods = response.methods || [];
                 updateUIForMonitoring(true);
             } else {
                 throw new Error(response?.error || 'Failed to start monitoring');
@@ -193,7 +118,6 @@ async function toggleMonitoring() {
         statusEl.innerHTML = '❌ ' + error.message;
         
         isMonitoring = false;
-        activeMethods = [];
         updateUIForMonitoring(false);
         
         setTimeout(() => {
@@ -214,28 +138,20 @@ async function toggleMonitoring() {
 function updateUIForMonitoring(monitoring) {
     const btn = document.getElementById('toggleBtn');
     const statusEl = document.getElementById('status');
-    const methodsEl = document.getElementById('activeMethods');
     
     if (monitoring) {
-        btn.innerHTML = '⏹️ Stop Listening';
+        btn.innerHTML = '⏹️ Stop Detection';
         btn.className = 'main-button danger';
         statusEl.className = 'status monitoring';
-        statusEl.innerHTML = '🔄 Listening...';
-        
-        if (activeMethods.length > 0) {
-            methodsEl.style.display = 'block';
-            methodsEl.innerHTML = `📡 Active: <strong>${activeMethods.join(', ')}</strong>`;
-        }
+        statusEl.innerHTML = '🔄 Monitoring...';
     } else {
-        btn.innerHTML = '🎙️ Start Listening';
+        btn.innerHTML = '🎙️ Start Detection';
         btn.className = 'main-button';
         
         if (statusEl.className !== 'status disconnected') {
             statusEl.className = 'status connected';
             statusEl.innerHTML = '✅ Ready';
         }
-        
-        methodsEl.style.display = 'none';
     }
 }
 
@@ -248,9 +164,9 @@ async function injectContentScript(tabId) {
             await chrome.scripting.executeScript({
                 target: { tabId: tabId },
                 func: () => {
-                    if (window.aiVoiceDetectorInjected && typeof stopAllAudioCapture === 'function') {
+                    if (window.aiVoiceDetectorInjected && typeof stopScreenAudioCapture === 'function') {
                         console.log('🛑 Stopping existing monitoring...');
-                        stopAllAudioCapture();
+                        stopScreenAudioCapture();
                     }
                     window.aiVoiceDetectorInjected = false;
                 }
@@ -294,56 +210,17 @@ async function sendMessageToTab(tabId, message) {
     }
 }
 
-async function testDetection() {
-    const testBtn = document.getElementById('testBtn');
-    const originalText = testBtn.innerHTML;
-    
-    testBtn.innerHTML = '<span class="loading"></span>';
-    testBtn.disabled = true;
-    
-    try {
-        const scenarios = [
-            {
-                prediction: 'FAKE',
-                confidence: 0.87,
-                source: 'Test - Fake Voice',
-                is_suspicious: true,
-                probabilities: { real: 0.13, fake: 0.87 }
-            },
-            {
-                prediction: 'REAL',
-                confidence: 0.92,
-                source: 'Test - Real Voice',
-                is_suspicious: false,
-                probabilities: { real: 0.92, fake: 0.08 }
-            }
-        ];
-        
-        const scenario = scenarios[Math.floor(Math.random() * scenarios.length)];
-        
-        const testResult = {
-            timestamp: new Date().toISOString(),
-            url: 'test://voice-detector',
-            ...scenario
-        };
-        
-        await storeDetection(testResult);
-        await loadDetectionHistory();
-        
-        testBtn.innerHTML = '✅';
-        setTimeout(() => {
-            testBtn.innerHTML = originalText;
-            testBtn.disabled = false;
-        }, 1500);
-        
-    } catch (error) {
-        console.error('Test failed:', error);
-        testBtn.innerHTML = '❌';
-        setTimeout(() => {
-            testBtn.innerHTML = originalText;
-            testBtn.disabled = false;
-        }, 2000);
-    }
+function showHistoryPage() {
+    document.getElementById('mainPage').classList.remove('active');
+    document.getElementById('historyPage').classList.add('active');
+    currentPage = 'history';
+    loadDetectionHistory();
+}
+
+function showMainPage() {
+    document.getElementById('historyPage').classList.remove('active');
+    document.getElementById('mainPage').classList.add('active');
+    currentPage = 'main';
 }
 
 async function loadDetectionHistory() {
@@ -351,26 +228,11 @@ async function loadDetectionHistory() {
         chrome.storage.local.get(['detections'], (data) => {
             const detections = data.detections || [];
             updateDetectionStats(detections);
-            displayDetections(detections.slice(-5).reverse());
+            displayDetections(detections.slice(-20).reverse()); // Show last 20 detections
         });
     } catch (error) {
         console.error('Failed to load detection history:', error);
     }
-}
-
-async function storeDetection(detection) {
-    return new Promise((resolve) => {
-        chrome.storage.local.get(['detections'], (data) => {
-            const detections = data.detections || [];
-            detections.push(detection);
-            
-            if (detections.length > 100) {
-                detections.splice(0, detections.length - 100);
-            }
-            
-            chrome.storage.local.set({ detections }, resolve);
-        });
-    });
 }
 
 function updateDetectionStats(detections) {
@@ -392,7 +254,8 @@ function displayDetections(detections) {
         listEl.innerHTML = `
             <div class="empty-state">
                 🎤<br>
-                Start listening to begin!
+                No detections yet.<br>
+                Start monitoring to see results!
             </div>
         `;
         return;
@@ -400,6 +263,7 @@ function displayDetections(detections) {
     
     listEl.innerHTML = detections.map(detection => {
         const time = new Date(detection.timestamp).toLocaleTimeString();
+        const date = new Date(detection.timestamp).toLocaleDateString();
         const confidence = (detection.confidence * 100).toFixed(1);
         const className = detection.prediction === 'FAKE' ? 'fake' : 'real';
         const icon = detection.prediction === 'FAKE' ? '🚨' : '✅';
@@ -407,14 +271,14 @@ function displayDetections(detections) {
         return `
             <div class="detection-item ${className}">
                 <div class="detection-header">
-                    <div class="detection-time">${time}</div>
+                    <div class="detection-time">${date} ${time}</div>
                     <div class="detection-confidence">${confidence}%</div>
                 </div>
                 <div class="detection-result">
-                    ${icon} ${detection.prediction}
+                    ${icon} ${detection.prediction === 'FAKE' ? 'AI VOICE' : 'REAL VOICE'}
                 </div>
                 <div class="detection-source">
-                    📡 ${detection.source || 'Unknown'}
+                    🖥️ Screen Audio
                 </div>
             </div>
         `;
@@ -425,14 +289,14 @@ async function clearHistory() {
     const clearBtn = document.getElementById('clearBtn');
     const originalText = clearBtn.innerHTML;
     
-    clearBtn.innerHTML = '<span class="loading"></span>';
+    clearBtn.innerHTML = '<span class="loading"></span> Clearing...';
     clearBtn.disabled = true;
     
     try {
         chrome.storage.local.set({ detections: [] });
         await loadDetectionHistory();
         
-        clearBtn.innerHTML = '✅';
+        clearBtn.innerHTML = '✅ Cleared';
         setTimeout(() => {
             clearBtn.innerHTML = originalText;
             clearBtn.disabled = false;
@@ -440,7 +304,7 @@ async function clearHistory() {
         
     } catch (error) {
         console.error('Failed to clear history:', error);
-        clearBtn.innerHTML = '❌';
+        clearBtn.innerHTML = '❌ Error';
         setTimeout(() => {
             clearBtn.innerHTML = originalText;
             clearBtn.disabled = false;

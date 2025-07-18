@@ -4,34 +4,42 @@
     <meta charset="utf-8">
     <style>
         body {
-            width: 320px;
-            min-height: 350px;
+            width: 240px;
+            min-height: 280px;
             margin: 0;
             padding: 0;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: #0a0a0a;
             color: white;
-            font-size: 13px;
+            font-size: 12px;
+        }
+
+        .page {
+            display: none;
+        }
+
+        .page.active {
+            display: block;
         }
 
         .header {
-            padding: 20px;
+            padding: 15px;
             text-align: center;
             background: #111111;
             border-bottom: 1px solid rgba(255, 193, 7, 0.2);
         }
 
         .header h1 {
-            margin: 0 0 8px 0;
-            font-size: 16px;
+            margin: 0 0 6px 0;
+            font-size: 15px;
             font-weight: 700;
             color: #ffc107;
         }
 
         .status {
-            padding: 6px 14px;
-            border-radius: 15px;
-            font-size: 11px;
+            padding: 5px 12px;
+            border-radius: 12px;
+            font-size: 10px;
             font-weight: 600;
             display: inline-block;
             border: 1px solid transparent;
@@ -61,18 +69,33 @@
             50% { opacity: 0.7; }
         }
 
-        .active-methods {
-            margin-top: 8px;
-            padding: 6px 10px;
-            background: rgba(255, 193, 7, 0.1);
-            border-radius: 6px;
-            font-size: 10px;
-            display: none;
-            color: #ffc107;
-        }
-
         .controls {
             padding: 15px;
+        }
+
+        .instruction-box {
+            background: rgba(255, 193, 7, 0.1);
+            border: 1px solid rgba(255, 193, 7, 0.3);
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 15px;
+            font-size: 11px;
+            line-height: 1.4;
+        }
+
+        .instruction-title {
+            font-weight: 600;
+            color: #ffc107;
+            margin-bottom: 6px;
+            font-size: 12px;
+        }
+
+        .instruction-steps {
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .instruction-steps strong {
+            color: #ffc107;
         }
 
         .main-button {
@@ -80,18 +103,18 @@
             background: linear-gradient(135deg, #ffc107, #ff8c00);
             border: none;
             color: #000000;
-            padding: 15px 20px;
-            border-radius: 8px;
+            padding: 14px 16px;
+            border-radius: 6px;
             font-weight: 600;
             cursor: pointer;
-            font-size: 14px;
+            font-size: 13px;
             transition: all 0.3s ease;
             margin-bottom: 15px;
         }
 
         .main-button:hover {
             transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(255, 193, 7, 0.3);
+            box-shadow: 0 4px 10px rgba(255, 193, 7, 0.3);
         }
 
         .main-button.danger {
@@ -100,131 +123,105 @@
         }
 
         .main-button.danger:hover {
-            box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+            box-shadow: 0 4px 10px rgba(220, 53, 69, 0.3);
         }
 
-        .secondary-controls {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 15px;
-        }
-
-        .btn-secondary {
+        .secondary-button {
+            width: 100%;
             background: rgba(255, 255, 255, 0.1);
             border: 1px solid rgba(255, 193, 7, 0.3);
             color: #ffc107;
-            padding: 8px 10px;
+            padding: 10px 16px;
             border-radius: 6px;
             font-weight: 500;
             cursor: pointer;
-            font-size: 11px;
-            flex: 1;
+            font-size: 12px;
             transition: all 0.3s ease;
         }
 
-        .btn-secondary:hover {
+        .secondary-button:hover {
             background: rgba(255, 193, 7, 0.1);
             border-color: #ffc107;
         }
 
-        .btn-secondary:disabled {
+        .secondary-button:disabled {
             opacity: 0.4;
             cursor: not-allowed;
         }
 
-        .settings-section {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 193, 7, 0.2);
-            border-radius: 8px;
-            margin-bottom: 15px;
-            overflow: hidden;
+        .loading {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border: 2px solid rgba(255, 193, 7, 0.3);
+            border-radius: 50%;
+            border-top-color: #ffc107;
+            animation: spin 1s ease-in-out infinite;
         }
 
-        .settings-header {
-            padding: 10px 12px;
-            background: rgba(255, 193, 7, 0.1);
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* History Page Styles */
+        .back-header {
+            padding: 12px 15px;
+            background: #111111;
             border-bottom: 1px solid rgba(255, 193, 7, 0.2);
-            cursor: pointer;
             display: flex;
-            justify-content: space-between;
             align-items: center;
-            font-size: 12px;
+            gap: 10px;
+        }
+
+        .back-button {
+            background: none;
+            border: none;
+            color: #ffc107;
+            font-size: 16px;
+            cursor: pointer;
+            padding: 0;
+        }
+
+        .back-button:hover {
+            opacity: 0.7;
+        }
+
+        .back-title {
+            font-size: 14px;
             font-weight: 600;
             color: #ffc107;
+            margin: 0;
         }
 
-        .settings-content {
-            padding: 12px;
-            display: none;
+        .history-controls {
+            padding: 12px 15px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
         }
 
-        .settings-content.show {
-            display: block;
-        }
-
-        .setting-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 10px;
-            font-size: 11px;
-        }
-
-        .setting-item:last-child {
-            margin-bottom: 0;
-        }
-
-        .setting-label {
-            display: flex;
-            flex-direction: column;
-            flex: 1;
-        }
-
-        .setting-name {
+        .clear-button {
+            width: 100%;
+            background: rgba(220, 53, 69, 0.2);
+            border: 1px solid rgba(220, 53, 69, 0.3);
+            color: #dc3545;
+            padding: 8px 12px;
+            border-radius: 4px;
             font-weight: 500;
-        }
-
-        .setting-desc {
-            font-size: 9px;
-            opacity: 0.7;
-            margin-top: 2px;
-        }
-
-        .toggle-switch {
-            position: relative;
-            width: 40px;
-            height: 20px;
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 20px;
             cursor: pointer;
+            font-size: 11px;
             transition: all 0.3s ease;
         }
 
-        .toggle-switch.active {
-            background: #ffc107;
-        }
-
-        .toggle-slider {
-            position: absolute;
-            top: 2px;
-            left: 2px;
-            width: 16px;
-            height: 16px;
-            background: white;
-            border-radius: 50%;
-            transition: all 0.3s ease;
-        }
-
-        .toggle-switch.active .toggle-slider {
-            transform: translateX(20px);
+        .clear-button:hover {
+            background: rgba(220, 53, 69, 0.3);
+            border-color: #dc3545;
         }
 
         .stats {
             background: rgba(255, 255, 255, 0.05);
             border: 1px solid rgba(255, 193, 7, 0.2);
-            border-radius: 8px;
+            border-radius: 6px;
             padding: 12px;
-            margin-bottom: 15px;
+            margin: 12px 15px;
         }
 
         .stats h3 {
@@ -237,15 +234,15 @@
 
         .stats-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr 1fr 1fr;
+            grid-template-columns: 1fr 1fr;
             gap: 8px;
         }
 
         .stat-item {
             text-align: center;
-            padding: 8px 4px;
+            padding: 8px 6px;
             background: rgba(255, 255, 255, 0.05);
-            border-radius: 6px;
+            border-radius: 4px;
         }
 
         .stat-number {
@@ -262,10 +259,7 @@
         }
 
         .detections {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 193, 7, 0.2);
-            border-radius: 8px;
-            padding: 12px;
+            padding: 15px;
         }
 
         .detections h3 {
@@ -277,13 +271,13 @@
         }
 
         .detection-list {
-            max-height: 120px;
+            max-height: 300px;
             overflow-y: auto;
         }
 
         .detection-item {
             background: rgba(255, 255, 255, 0.05);
-            border-radius: 6px;
+            border-radius: 4px;
             padding: 10px;
             margin-bottom: 6px;
             border-left: 3px solid transparent;
@@ -303,20 +297,6 @@
             margin-bottom: 0;
         }
 
-        .loading {
-            display: inline-block;
-            width: 10px;
-            height: 10px;
-            border: 2px solid rgba(255, 193, 7, 0.3);
-            border-radius: 50%;
-            border-top-color: #ffc107;
-            animation: spin 1s ease-in-out infinite;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
         .detection-list::-webkit-scrollbar {
             width: 4px;
         }
@@ -334,7 +314,7 @@
             text-align: center;
             color: rgba(255,255,255,0.5);
             font-size: 11px;
-            padding: 15px;
+            padding: 20px;
         }
 
         .detection-header {
@@ -345,95 +325,70 @@
         }
 
         .detection-time {
-            font-size: 10px;
+            font-size: 9px;
             opacity: 0.8;
         }
 
         .detection-confidence {
             background: rgba(255, 193, 7, 0.2);
             color: #ffc107;
-            padding: 1px 6px;
-            border-radius: 10px;
-            font-size: 9px;
+            padding: 2px 6px;
+            border-radius: 8px;
+            font-size: 8px;
             font-weight: 600;
         }
 
         .detection-result {
             font-weight: bold;
             font-size: 11px;
+            margin-bottom: 2px;
         }
 
         .detection-source {
-            font-size: 9px;
+            font-size: 8px;
             opacity: 0.7;
-        }
-
-        .chevron {
-            transition: transform 0.3s ease;
-        }
-
-        .chevron.rotated {
-            transform: rotate(180deg);
         }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>🛡️ AI Voice Detector</h1>
-        <div id="status" class="status connected">✅ Ready</div>
-        <div id="activeMethods" class="active-methods" style="display: none;">
-            📡 Active: <strong>None</strong>
+    <!-- Main Page -->
+    <div id="mainPage" class="page active">
+        <div class="header">
+            <h1>🛡️ AI Voice Detector</h1>
+            <div id="status" class="status connected">✅ Ready</div>
+        </div>
+
+        <div class="controls">
+            <div class="instruction-box">
+                <div class="instruction-title">🖥️ How to Use</div>
+                <div class="instruction-steps">
+                    1. Click "Start Detection" below<br>
+                    2. Select the <strong>"Entire screen"</strong> tab<br>
+                    3. Click on your screen to select it<br>
+                    4. <strong>Check "Also share system audio"</strong><br>
+                    5. Click "Share" - that's it! ✅
+                </div>
+            </div>
+
+            <button id="toggleBtn" class="main-button">🎙️ Start Detection</button>
+
+            <button id="historyBtn" class="secondary-button">📊 View History & Stats</button>
         </div>
     </div>
 
-    <div class="controls">
-        <button id="toggleBtn" class="main-button">🎙️ Start Listening</button>
-
-        <div class="secondary-controls">
-            <button id="testBtn" class="btn-secondary">🧪 Test</button>
-            <button id="clearBtn" class="btn-secondary">🗑️ Clear</button>
+    <!-- History Page -->
+    <div id="historyPage" class="page">
+        <div class="back-header">
+            <button id="backBtn" class="back-button">←</button>
+            <h2 class="back-title">Detection History</h2>
         </div>
 
-        <div class="settings-section">
-            <div class="settings-header" id="settingsHeader">
-                <span>⚙️ Audio Sources</span>
-                <span class="chevron" id="settingsChevron">▼</span>
-            </div>
-            <div class="settings-content" id="settingsContent">
-                <div class="setting-item">
-                    <div class="setting-label">
-                        <div class="setting-name">🖥️ Screen Sharing</div>
-                        <div class="setting-desc">Best for most sites (works with headphones)</div>
-                    </div>
-                    <div class="toggle-switch active" id="toggleScreen">
-                        <div class="toggle-slider"></div>
-                    </div>
-                </div>
-                
-                <div class="setting-item">
-                    <div class="setting-label">
-                        <div class="setting-name">🎤 Microphone</div>
-                        <div class="setting-desc">Only works with speakers (not headphones)</div>
-                    </div>
-                    <div class="toggle-switch" id="toggleMic">
-                        <div class="toggle-slider"></div>
-                    </div>
-                </div>
-                
-                <div class="setting-item">
-                    <div class="setting-label">
-                        <div class="setting-name">🌐 Page Audio</div>
-                        <div class="setting-desc">Limited support (many sites block this)</div>
-                    </div>
-                    <div class="toggle-switch" id="togglePage">
-                        <div class="toggle-slider"></div>
-                    </div>
-                </div>
-            </div>
+        <div class="history-controls">
+            <button id="clearBtn" class="clear-button">🗑️ Clear All History</button>
         </div>
 
         <div class="stats">
-            <h3>📊 Stats</h3>
+            <h3>📊 Statistics</h3>
             <div class="stats-grid">
                 <div class="stat-item">
                     <span class="stat-number" id="totalDetections">0</span>
@@ -441,11 +396,11 @@
                 </div>
                 <div class="stat-item">
                     <span class="stat-number" id="fakeDetections">0</span>
-                    <span class="stat-label">Fake</span>
+                    <span class="stat-label">AI Voices</span>
                 </div>
                 <div class="stat-item">
                     <span class="stat-number" id="realDetections">0</span>
-                    <span class="stat-label">Real</span>
+                    <span class="stat-label">Real Voices</span>
                 </div>
                 <div class="stat-item">
                     <span class="stat-number" id="suspiciousDetections">0</span>
@@ -455,11 +410,12 @@
         </div>
 
         <div class="detections">
-            <h3>🔍 Recent</h3>
+            <h3>🔍 Recent Detections</h3>
             <div id="detectionList" class="detection-list">
                 <div class="empty-state">
                     🎤<br>
-                    Start listening to begin!
+                    No detections yet.<br>
+                    Start monitoring to see results!
                 </div>
             </div>
         </div>

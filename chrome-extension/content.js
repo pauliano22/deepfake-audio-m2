@@ -1,145 +1,72 @@
-// content.js - Simple multi-method audio capture
+// content.js - Simplified screen audio capture only
 // Prevent multiple injections
 if (window.aiVoiceDetectorInjected) {
     console.log('🔄 AI Voice Detector already injected, skipping...');
 } else {
     window.aiVoiceDetectorInjected = true;
-    console.log('🎤 AI Voice Detector - Multi-Method Audio Capture');
+    console.log('🎤 AI Voice Detector - Screen Audio Capture');
 
     let isMonitoring = false;
     let audioContext;
-    let mediaStreams = [];
-    let scriptProcessors = [];
-    let activeMethods = [];
+    let mediaStream = null;
+    let scriptProcessor = null;
+    let screenShareRequested = false; // Prevent multiple prompts
+
+    // Anti-spam controls
+    let lastAlertTime = 0;
+    const ALERT_COOLDOWN = 5000; // 5 seconds between alerts
+    let recentDetections = [];
+    const DETECTION_WINDOW = 10000; // 10 second window for duplicate detection
+    let activeAlert = null; // Track current alert to prevent overlapping
 
     const HF_API_URL = 'https://pauliano22-deepfake-audio-detector.hf.space/gradio_api';
-
-    // Default settings
-    let settings = {
-        enableScreenCapture: true,
-        enableMicrophone: true,
-        enablePageAudio: true
-    };
 
     chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         console.log('📨 Message received:', request);
         
         if (request.action === 'startMonitoring') {
-            console.log('🎥 Starting multi-method audio monitoring...');
+            console.log('🖥️ Starting screen audio monitoring...');
             
-            startAllAudioCapture()
+            startScreenAudioCapture()
                 .then(() => {
-                    console.log('✅ Audio monitoring started');
-                    sendResponse({ success: true, isMonitoring: true, methods: activeMethods });
+                    console.log('✅ Screen audio monitoring started');
+                    sendResponse({ success: true, isMonitoring: true });
                 })
                 .catch(error => {
-                    console.error('❌ Audio capture failed:', error);
+                    console.error('❌ Screen audio capture failed:', error);
                     sendResponse({ success: false, error: error.message });
                 });
             return true;
             
         } else if (request.action === 'stopMonitoring') {
-            stopAllAudioCapture();
+            stopScreenAudioCapture();
             sendResponse({ success: true, isMonitoring: false });
             
         } else if (request.action === 'getMonitoringState') {
-            sendResponse({ isMonitoring, methods: activeMethods });
-            
-        } else if (request.action === 'updateSettings') {
-            settings = { ...settings, ...request.settings };
-            console.log('⚙️ Settings updated:', settings);
-            sendResponse({ success: true });
+            sendResponse({ isMonitoring });
         }
         
         return true;
     });
 
-    async function startAllAudioCapture() {
+    async function startScreenAudioCapture() {
         if (isMonitoring) {
             console.log('⚠️ Already monitoring');
             return;
         }
 
-        // Load settings from storage
-        await loadSettings();
-        
-        console.log('🚀 Starting all available audio capture methods...');
-        showNotification('🚀 Starting Audio Detection', 'Trying all available methods...', 3000);
-        
-        activeMethods = [];
-        let successCount = 0;
-        let pageAudioSuccess = false;
-
-        // Try page audio first (highest quality)
-        if (settings.enablePageAudio) {
-            try {
-                await startPageAudioCapture();
-                activeMethods.push('Page Audio');
-                pageAudioSuccess = true;
-                successCount++;
-                console.log('✅ Page audio capture started');
-            } catch (error) {
-                console.log('❌ Page audio capture failed:', error.message);
-            }
+        if (screenShareRequested) {
+            throw new Error('Screen sharing already in progress. Please complete the previous request.');
         }
 
-        // Try screen capture (good quality, works with any app)
-        if (settings.enableScreenCapture) {
-            try {
-                await startScreenCapture();
-                activeMethods.push('Screen Audio');
-                successCount++;
-                console.log('✅ Screen capture started');
-            } catch (error) {
-                console.log('❌ Screen capture failed:', error.message);
-            }
-        }
-
-        // Try microphone capture (DISABLED for now to avoid conflicts)
-        // if (settings.enableMicrophone && !pageAudioSuccess) {
-        //     try {
-        //         await startMicrophoneCapture();
-        //         activeMethods.push('Microphone');
-        //         successCount++;
-        //         console.log('✅ Microphone capture started');
-        //     } catch (error) {
-        //         console.log('❌ Microphone capture failed:', error.message);
-        //     }
-        // } else if (settings.enableMicrophone && pageAudioSuccess) {
-        //     console.log('⚠️ Skipping microphone - page audio already active (avoiding conflicts)');
-        // }
-        
-        console.log('🎤 Microphone capture temporarily disabled to avoid conflicts with page audio');
-
-        if (successCount === 0) {
-            throw new Error('All audio capture methods failed. Try enabling different methods in settings.');
-        }
-
-        isMonitoring = true;
-        console.log(`✅ ${successCount} audio capture method(s) active:`, activeMethods);
-        showNotification('🎯 Audio Detection Active!', `${successCount} method(s) capturing: ${activeMethods.join(', ')}`, 5000);
-    }
-
-    async function loadSettings() {
-        return new Promise((resolve) => {
-            chrome.storage.local.get(['audioSettings'], (data) => {
-                if (data.audioSettings) {
-                    settings = { ...settings, ...data.audioSettings };
-                }
-                console.log('⚙️ Loaded settings:', settings);
-                resolve();
-            });
-        });
-    }
-
-    async function startScreenCapture() {
-        console.log('🖥️ Attempting screen capture...');
+        console.log('🖥️ Starting screen audio capture...');
+        screenShareRequested = true;
         
         try {
-            // Show helpful notification
-            showNotification('🖥️ Screen Share Request', 'Select window/screen and CHECK "Share audio"!', 5000);
+            // Show instruction notification
+            showNotification('🖥️ Screen Share Instructions', 'Select "Entire screen" and check "Also share system audio"!', 8000);
             
-            const mediaStream = await navigator.mediaDevices.getDisplayMedia({
+            mediaStream = await navigator.mediaDevices.getDisplayMedia({
                 video: true,
                 audio: {
                     echoCancellation: false,
@@ -163,132 +90,44 @@ if (window.aiVoiceDetectorInjected) {
             if (audioTracks.length === 0) {
                 // Clean up video tracks
                 videoTracks.forEach(track => track.stop());
-                throw new Error('No audio from screen sharing. Make sure to check "Share audio".');
+                throw new Error('No system audio detected! You must select "Entire screen" and check "Also share system audio".');
             }
             
             // Stop video tracks to save resources but keep audio
             videoTracks.forEach(track => {
-                console.log('⏹️ Stopping video track to save resources:', track.label);
+                console.log('⏹️ Stopping video track to save resources');
                 track.stop();
             });
             
-            mediaStreams.push(mediaStream);
-            setupAudioProcessing(mediaStream, 'Screen Audio');
+            // Set up audio processing
+            setupAudioProcessing();
             
+            // Handle stream ending
+            audioTracks[0].addEventListener('ended', () => {
+                console.log('🔚 Screen sharing ended by user');
+                stopScreenAudioCapture();
+            });
+            
+            isMonitoring = true;
             console.log('✅ Screen audio capture active');
+            showNotification('🎯 Detection Active!', 'Monitoring system audio for AI voices...', 3000);
             
         } catch (error) {
+            screenShareRequested = false;
+            
             if (error.name === 'NotAllowedError') {
-                throw new Error('Screen sharing permission denied. Please allow and check "Share audio".');
+                throw new Error('Permission denied. Please allow screen sharing and check "Also share system audio".');
             } else if (error.name === 'NotSupportedError') {
                 throw new Error('Screen sharing not supported in this browser.');
             } else if (error.name === 'AbortError') {
-                throw new Error('Screen sharing cancelled by user.');
+                throw new Error('Screen sharing cancelled. Make sure to select "Entire screen" and check "Also share system audio".');
             } else {
                 throw new Error(`Screen capture failed: ${error.message}`);
             }
         }
     }
 
-    async function startMicrophoneCapture() {
-        console.log('🎤 Attempting microphone capture...');
-        
-        const mediaStream = await navigator.mediaDevices.getUserMedia({
-            audio: {
-                echoCancellation: false,
-                noiseSuppression: false,
-                autoGainControl: false,
-                sampleRate: 22050
-            }
-        });
-        
-        mediaStreams.push(mediaStream);
-        setupAudioProcessing(mediaStream, 'Microphone');
-    }
-
-    async function startPageAudioCapture() {
-        console.log('🌐 Attempting page audio capture...');
-        
-        const audioElements = document.querySelectorAll('audio, video');
-        console.log(`🔍 Found ${audioElements.length} audio/video elements`);
-        
-        if (audioElements.length === 0) {
-            throw new Error('No audio/video elements found on this page.');
-        }
-        
-        // Create audio context for page audio
-        if (!audioContext) {
-            audioContext = new (window.AudioContext || window.webkitAudioContext)({
-                sampleRate: 22050
-            });
-        }
-        
-        // Try to find an element we can connect to
-        let connectedElement = null;
-        let lastError = null;
-        
-        for (const element of audioElements) {
-            try {
-                console.log(`🔌 Trying to connect to ${element.tagName}:`, element.src || element.currentSrc || 'no src');
-                
-                // Check if element already has a source node
-                if (element.sourceNode) {
-                    console.log('⚠️ Element already has source node, skipping');
-                    continue;
-                }
-                
-                const source = audioContext.createMediaElementSource(element);
-                element.sourceNode = source; // Mark as connected
-                
-                const gainNode = audioContext.createGain();
-                gainNode.gain.value = 1.0;
-                
-                // Connect: source -> gain -> destination (speakers)
-                source.connect(gainNode);
-                gainNode.connect(audioContext.destination);
-                
-                // Create script processor for analysis
-                const scriptProcessor = audioContext.createScriptProcessor(4096, 1, 1);
-                gainNode.connect(scriptProcessor);
-                
-                scriptProcessors.push(scriptProcessor);
-                setupPageAudioProcessing(scriptProcessor, `Page Audio (${element.tagName})`);
-                
-                connectedElement = element;
-                console.log(`✅ Successfully connected to ${element.tagName}`);
-                break;
-                
-            } catch (error) {
-                lastError = error;
-                console.log(`❌ Failed to connect to ${element.tagName}: ${error.message}`);
-                
-                // If CORS error, try alternative approach
-                if (error.message.includes('CORS') || error.message.includes('cross-origin')) {
-                    console.log('🚨 CORS restriction detected - ElevenLabs is blocking direct audio access');
-                    console.log('💡 Recommendation: Use Screen Sharing or Microphone with speakers instead');
-                }
-                continue;
-            }
-        }
-        
-        if (!connectedElement) {
-            if (lastError) {
-                if (lastError.message.includes('already connected')) {
-                    throw new Error('Audio elements already in use. Try refreshing the page or use Screen Sharing instead.');
-                } else if (lastError.message.includes('CORS')) {
-                    throw new Error('ElevenLabs blocks direct audio access (CORS). Use Screen Sharing or Microphone with speakers.');
-                } else {
-                    throw new Error(`Could not connect to any audio elements: ${lastError.message}`);
-                }
-            } else {
-                throw new Error('No suitable audio elements found for connection.');
-            }
-        }
-        
-        console.log('🌐 Page audio capture setup complete');
-    }
-
-    function setupAudioProcessing(mediaStream, source) {
+    function setupAudioProcessing() {
         if (!audioContext) {
             audioContext = new (window.AudioContext || window.webkitAudioContext)({
                 sampleRate: 22050
@@ -296,7 +135,7 @@ if (window.aiVoiceDetectorInjected) {
         }
         
         const streamSource = audioContext.createMediaStreamSource(mediaStream);
-        const scriptProcessor = audioContext.createScriptProcessor(4096, 1, 1);
+        scriptProcessor = audioContext.createScriptProcessor(4096, 1, 1);
         
         let audioBuffer = [];
         let bufferDuration = 0;
@@ -317,13 +156,13 @@ if (window.aiVoiceDetectorInjected) {
             const now = Date.now();
             
             // Log volume periodically for debugging
-            if (now - lastVolumeLog > 5000) {
-                console.log(`🔊 ${source} volume: ${volume.toFixed(6)}`);
+            if (now - lastVolumeLog > 10000) { // Every 10 seconds
+                console.log(`🔊 Screen audio volume: ${volume.toFixed(6)}`);
                 lastVolumeLog = now;
             }
             
-            // Detect audio activity (volume threshold)
-            const volumeThreshold = 0.01; // Adjust as needed
+            // Detect audio activity
+            const volumeThreshold = 0.01;
             const wasActiveAudio = isActiveAudio;
             isActiveAudio = volume > volumeThreshold;
             
@@ -338,26 +177,26 @@ if (window.aiVoiceDetectorInjected) {
             // 1. Audio just stopped (end of speech/AI voice)
             if (wasActiveAudio && !isActiveAudio) {
                 silenceStart = now;
-                if (bufferDuration >= 2) { // At least 2 seconds of audio
+                if (bufferDuration >= 3) {
                     shouldAnalyze = true;
                     reason = 'audio stopped';
                 }
             }
             
-            // 2. We have 5+ seconds of audio and it's been active
-            if (bufferDuration >= 5 && isActiveAudio) {
+            // 2. We have 6+ seconds of continuous audio
+            if (bufferDuration >= 6 && isActiveAudio) {
                 shouldAnalyze = true;
-                reason = '5+ seconds of active audio';
+                reason = '6+ seconds of active audio';
             }
             
-            // 3. Silence timeout (analyze whatever we have after 3 seconds of silence)
-            if (!isActiveAudio && silenceStart > 0 && (now - silenceStart > 3000) && bufferDuration >= 1) {
+            // 3. Silence timeout (analyze after 4 seconds of silence)
+            if (!isActiveAudio && silenceStart > 0 && (now - silenceStart > 4000) && bufferDuration >= 2) {
                 shouldAnalyze = true;
                 reason = 'silence timeout';
             }
             
-            // 4. Fallback: every 15 seconds regardless
-            if (now - lastAnalysisTime > 15000 && bufferDuration >= 3) {
+            // 4. Fallback: every 20 seconds regardless
+            if (now - lastAnalysisTime > 20000 && bufferDuration >= 3) {
                 shouldAnalyze = true;
                 reason = 'time-based fallback';
             }
@@ -365,17 +204,17 @@ if (window.aiVoiceDetectorInjected) {
             // Analyze if triggered
             if (shouldAnalyze) {
                 processedChunks++;
-                console.log(`🔄 Processing ${source} chunk #${processedChunks}: ${reason} (${bufferDuration.toFixed(1)}s, volume: ${volume.toFixed(6)})`);
-                analyzeAudioBuffer([...audioBuffer], source);
+                console.log(`🔄 Processing chunk #${processedChunks}: ${reason} (${bufferDuration.toFixed(1)}s, volume: ${volume.toFixed(6)})`);
+                analyzeAudioBuffer([...audioBuffer]);
                 lastAnalysisTime = now;
                 audioBuffer = [];
                 bufferDuration = 0;
                 silenceStart = 0;
             }
             
-            // Prevent buffer from getting too large
-            if (bufferDuration > 10) {
-                console.log(`⚠️ ${source} buffer overflow, clearing`);
+            // Prevent buffer overflow
+            if (bufferDuration > 12) {
+                console.log(`⚠️ Audio buffer overflow, clearing`);
                 audioBuffer = [];
                 bufferDuration = 0;
             }
@@ -383,112 +222,37 @@ if (window.aiVoiceDetectorInjected) {
         
         streamSource.connect(scriptProcessor);
         scriptProcessor.connect(audioContext.destination);
-        scriptProcessors.push(scriptProcessor);
     }
 
-    function setupPageAudioProcessing(scriptProcessor, source) {
-        let audioBuffer = [];
-        let bufferDuration = 0;
-        let lastAnalysisTime = 0;
-        let processedChunks = 0;
-        
-        let isActiveAudio = false;
-        let silenceStart = 0;
-        
-        scriptProcessor.onaudioprocess = (event) => {
-            if (!isMonitoring) return;
-            
-            const inputBuffer = event.inputBuffer;
-            const inputData = inputBuffer.getChannelData(0);
-            
-            const volume = calculateRMS(inputData);
-            const now = Date.now();
-            
-            // Log volume every 3 seconds for page audio
-            if (now - lastVolumeLog > 3000) {
-                console.log(`🔊 ${source} volume: ${volume.toFixed(6)} (page audio active)`);
-                lastVolumeLog = now;
-            }
-            
-            // Detect audio activity
-            const volumeThreshold = 0.01;
-            const wasActiveAudio = isActiveAudio;
-            isActiveAudio = volume > volumeThreshold;
-            
-            audioBuffer.push(new Float32Array(inputData));
-            bufferDuration += inputBuffer.duration;
-            
-            // Smart analysis triggers
-            let shouldAnalyze = false;
-            let reason = '';
-            
-            // Audio just stopped (likely end of speech/AI voice)
-            if (wasActiveAudio && !isActiveAudio) {
-                silenceStart = now;
-                if (bufferDuration >= 2) {
-                    shouldAnalyze = true;
-                    reason = 'audio stopped';
-                }
-            }
-            
-            // Long active audio
-            if (bufferDuration >= 5 && isActiveAudio) {
-                shouldAnalyze = true;
-                reason = '5+ seconds active';
-            }
-            
-            // Silence timeout
-            if (!isActiveAudio && silenceStart > 0 && (now - silenceStart > 3000) && bufferDuration >= 1) {
-                shouldAnalyze = true;
-                reason = 'silence timeout';
-            }
-            
-            // Fallback timer (every 10 seconds for page audio)
-            if (now - lastAnalysisTime > 10000 && bufferDuration >= 2) {
-                shouldAnalyze = true;
-                reason = 'timer fallback';
-            }
-            
-            if (shouldAnalyze) {
-                processedChunks++;
-                console.log(`🔄 Processing ${source} chunk #${processedChunks}: ${reason} (${bufferDuration.toFixed(1)}s, vol: ${volume.toFixed(6)})`);
-                analyzeAudioBuffer([...audioBuffer], source);
-                lastAnalysisTime = now;
-                audioBuffer = [];
-                bufferDuration = 0;
-                silenceStart = 0;
-            }
-            
-            // Prevent overflow
-            if (bufferDuration > 10) {
-                console.log(`⚠️ ${source} buffer overflow, clearing`);
-                audioBuffer = [];
-                bufferDuration = 0;
-            }
-        };
-    }
-
-    function stopAllAudioCapture() {
+    function stopScreenAudioCapture() {
         if (!isMonitoring) return;
         
-        console.log('⏹️ Stopping all audio capture...');
+        console.log('⏹️ Stopping screen audio capture...');
         
-        // Stop all script processors
-        scriptProcessors.forEach(processor => {
+        // Clear anti-spam data
+        lastAlertTime = 0;
+        recentDetections = [];
+        if (activeAlert) {
+            activeAlert.remove();
+            activeAlert = null;
+        }
+        
+        // Stop script processor
+        if (scriptProcessor) {
             try {
-                processor.disconnect();
+                scriptProcessor.disconnect();
             } catch (e) {}
-        });
-        scriptProcessors = [];
+            scriptProcessor = null;
+        }
         
-        // Stop all media streams
-        mediaStreams.forEach(stream => {
-            stream.getTracks().forEach(track => {
+        // Stop media stream
+        if (mediaStream) {
+            mediaStream.getTracks().forEach(track => {
                 console.log('⏹️ Stopping track:', track.label);
                 track.stop();
             });
-        });
-        mediaStreams = [];
+            mediaStream = null;
+        }
         
         // Close audio context
         if (audioContext && audioContext.state !== 'closed') {
@@ -497,13 +261,13 @@ if (window.aiVoiceDetectorInjected) {
         }
         
         isMonitoring = false;
-        activeMethods = [];
-        console.log('✅ All audio monitoring stopped');
+        screenShareRequested = false;
+        console.log('✅ Screen audio monitoring stopped');
         
-        showNotification('⏹️ Monitoring Stopped', 'All audio capture stopped');
+        showNotification('⏹️ Monitoring Stopped', 'Screen audio capture stopped');
     }
 
-    async function analyzeAudioBuffer(audioBuffer, source) {
+    async function analyzeAudioBuffer(audioBuffer) {
         try {
             const totalLength = audioBuffer.reduce((sum, chunk) => sum + chunk.length, 0);
             const combinedBuffer = new Float32Array(totalLength);
@@ -517,25 +281,25 @@ if (window.aiVoiceDetectorInjected) {
             const volume = calculateRMS(combinedBuffer);
             
             if (volume < 0.001) {
-                console.log(`🔇 ${source} audio too quiet, skipping analysis`);
+                console.log(`🔇 Audio too quiet, skipping analysis`);
                 return;
             }
             
             const wavBlob = createWAVBlob(combinedBuffer, 22050);
-            console.log(`📦 Analyzing ${source} audio: ${wavBlob.size} bytes`);
+            console.log(`📦 Analyzing audio: ${wavBlob.size} bytes`);
             
             const result = await sendToHuggingFaceAPI(wavBlob);
             
             if (result && !result.error) {
-                console.log(`🎯 ${source} detection result:`, result);
-                result.source = source;
+                console.log(`🎯 Detection result:`, result);
+                result.source = 'Screen Audio';
                 handleDetectionResult(result);
             } else {
-                console.error(`❌ ${source} API error:`, result?.error);
+                console.error(`❌ API error:`, result?.error);
             }
             
         } catch (error) {
-            console.error(`❌ ${source} analysis failed:`, error);
+            console.error(`❌ Analysis failed:`, error);
         }
     }
 
@@ -664,6 +428,28 @@ if (window.aiVoiceDetectorInjected) {
     function handleDetectionResult(result) {
         console.log('🎯 Handling detection result:', result);
         
+        // Check for duplicate/spam detection
+        const now = Date.now();
+        const resultKey = `${result.prediction}-${Math.round(result.confidence * 10)}`;
+        
+        // Clean old detections
+        recentDetections = recentDetections.filter(det => now - det.time < DETECTION_WINDOW);
+        
+        // Check if this is a duplicate
+        const isDuplicate = recentDetections.some(det => det.key === resultKey);
+        
+        if (isDuplicate) {
+            console.log('🔄 Duplicate detection ignored:', resultKey);
+            return;
+        }
+        
+        // Add to recent detections
+        recentDetections.push({
+            key: resultKey,
+            time: now
+        });
+        
+        // Store detection
         chrome.storage.local.get(['detections'], (data) => {
             const detections = data.detections || [];
             detections.push(result);
@@ -675,8 +461,10 @@ if (window.aiVoiceDetectorInjected) {
             chrome.storage.local.set({ detections });
         });
         
-        if (result.is_suspicious) {
+        // Show alert with anti-spam protection
+        if (result.is_suspicious && shouldShowAlert()) {
             showDeepfakeAlert(result);
+            lastAlertTime = now;
         }
         
         chrome.runtime.sendMessage({
@@ -685,37 +473,50 @@ if (window.aiVoiceDetectorInjected) {
         }).catch(() => {});
     }
 
+    function shouldShowAlert() {
+        const now = Date.now();
+        return now - lastAlertTime >= ALERT_COOLDOWN && !activeAlert;
+    }
+
     function showDeepfakeAlert(result) {
         console.log('🚨 DEEPFAKE DETECTED!');
         
+        // Remove any existing alert
+        if (activeAlert) {
+            activeAlert.remove();
+        }
+        
         const alert = document.createElement('div');
+        activeAlert = alert;
+        
         alert.style.cssText = `
             position: fixed;
-            top: 20px;
-            right: 20px;
+            top: 15px;
+            right: 15px;
             background: #dc3545;
             color: white;
-            padding: 20px;
-            border-radius: 10px;
+            padding: 15px;
+            border-radius: 8px;
             font-family: Arial, sans-serif;
             font-weight: bold;
             z-index: 10000;
-            box-shadow: 0 8px 16px rgba(220, 53, 69, 0.4);
-            max-width: 350px;
-            border: 3px solid #ff0000;
-            animation: alertPulse 1s infinite;
+            box-shadow: 0 6px 12px rgba(220, 53, 69, 0.4);
+            max-width: 280px;
+            border: 2px solid #ff0000;
+            animation: alertSlideIn 0.3s ease-out;
+            font-size: 13px;
         `;
         
         alert.innerHTML = `
-            🚨 DEEPFAKE DETECTED!<br>
-            <div style="font-size: 14px; margin: 10px 0;">
-                Source: ${result.source}<br>
-                Confidence: ${(result.confidence * 100).toFixed(1)}%
+            🚨 AI VOICE DETECTED!<br>
+            <div style="font-size: 11px; margin: 8px 0; opacity: 0.9;">
+                Confidence: ${(result.confidence * 100).toFixed(1)}%<br>
+                Source: System Audio
             </div>
-            <button onclick="this.parentElement.remove()" 
-                    style="margin-top: 10px; padding: 8px 12px; border: none; 
-                           border-radius: 5px; background: white; color: black; 
-                           cursor: pointer; font-weight: bold;">
+            <button onclick="this.parentElement.remove(); window.activeAlert = null;" 
+                    style="margin-top: 8px; padding: 6px 10px; border: none; 
+                           border-radius: 4px; background: white; color: black; 
+                           cursor: pointer; font-weight: bold; font-size: 11px;">
                 Dismiss
             </button>
         `;
@@ -725,10 +526,15 @@ if (window.aiVoiceDetectorInjected) {
             const style = document.createElement('style');
             style.id = 'alert-styles';
             style.textContent = `
-                @keyframes alertPulse {
-                    0% { transform: scale(1); }
-                    50% { transform: scale(1.02); }
-                    100% { transform: scale(1); }
+                @keyframes alertSlideIn {
+                    from { 
+                        transform: translateX(100%); 
+                        opacity: 0; 
+                    }
+                    to { 
+                        transform: translateX(0); 
+                        opacity: 1; 
+                    }
                 }
             `;
             document.head.appendChild(style);
@@ -736,9 +542,15 @@ if (window.aiVoiceDetectorInjected) {
         
         document.body.appendChild(alert);
         
+        // Auto-dismiss after 10 seconds
         setTimeout(() => {
-            if (alert.parentElement) alert.remove();
-        }, 20000);
+            if (alert.parentElement) {
+                alert.remove();
+                if (activeAlert === alert) {
+                    activeAlert = null;
+                }
+            }
+        }, 10000);
     }
 
     function calculateRMS(audioData) {
@@ -790,16 +602,16 @@ if (window.aiVoiceDetectorInjected) {
         notification.style.cssText = `
             position: fixed;
             top: 10px;
-            right: 10px;
+            left: 10px;
             background: rgba(40, 167, 69, 0.9);
             color: white;
-            padding: 15px;
-            border-radius: 8px;
+            padding: 12px;
+            border-radius: 6px;
             font-family: Arial, sans-serif;
-            font-size: 14px;
+            font-size: 12px;
             font-weight: bold;
             z-index: 9999;
-            max-width: 300px;
+            max-width: 250px;
             border: 2px solid #28a745;
         `;
         
@@ -811,5 +623,5 @@ if (window.aiVoiceDetectorInjected) {
         }, duration);
     }
 
-    console.log('✅ Multi-Method AI Voice Detector ready!');
+    console.log('✅ AI Voice Detector ready - Screen Audio Only!');
 }
