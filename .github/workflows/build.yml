@@ -25,12 +25,30 @@ jobs:
         python -m pip install --upgrade pip
         pip install pyaudio numpy pillow pystray requests plyer pyinstaller
     
-    - name: Create icon
-      run: python create_icon.py
+    - name: Check files
+      run: |
+        echo "Checking for required files..."
+        if exist deepfake_monitor.py echo "✅ deepfake_monitor.py found" else echo "❌ deepfake_monitor.py missing"
+        if exist create_icon.py echo "✅ create_icon.py found" else echo "❌ create_icon.py missing"
+        dir
+    
+    - name: Create icon (or use existing)
+      run: |
+        if exist create_icon.py (
+          python create_icon.py
+        ) else (
+          echo Creating basic icon with Python...
+          python -c "from PIL import Image; img=Image.new('RGB',(64,64),'#FFD700'); img.save('lion_icon.ico')"
+        )
       
     - name: Build Windows executable
       run: |
-        pyinstaller --onefile --windowed --name "Lion-AI-Detection" --icon lion_icon.ico --add-data "lion_icon.png;." --add-data "lion_icon.ico;." deepfake_monitor.py
+        if exist deepfake_monitor.py (
+          pyinstaller --onefile --windowed --name "Lion-AI-Detection" --icon lion_icon.ico --add-data "lion_icon.png;." --add-data "lion_icon.ico;." deepfake_monitor.py
+        ) else (
+          echo "❌ Cannot build: deepfake_monitor.py not found"
+          exit 1
+        )
     
     - name: Upload Windows artifact
       uses: actions/upload-artifact@v3
@@ -58,12 +76,30 @@ jobs:
         python -m pip install --upgrade pip
         pip install pyaudio numpy pillow pystray requests plyer pyinstaller
     
-    - name: Create icon
-      run: python create_icon.py
+    - name: Check files
+      run: |
+        echo "Checking for required files..."
+        ls -la
+        if [ -f "deepfake_monitor.py" ]; then echo "✅ deepfake_monitor.py found"; else echo "❌ deepfake_monitor.py missing"; fi
+        if [ -f "create_icon.py" ]; then echo "✅ create_icon.py found"; else echo "❌ create_icon.py missing"; fi
+    
+    - name: Create icon (or use existing)
+      run: |
+        if [ -f "create_icon.py" ]; then
+          python create_icon.py
+        else
+          echo "Creating basic icon with Python..."
+          python -c "from PIL import Image; img=Image.new('RGB',(64,64),'#FFD700'); img.save('lion_icon.png')"
+        fi
       
     - name: Build macOS executable
       run: |
-        pyinstaller --onefile --windowed --name "Lion-AI-Detection" --icon lion_icon.png --add-data "lion_icon.png:." --add-data "lion_icon.ico:." deepfake_monitor.py
+        if [ -f "deepfake_monitor.py" ]; then
+          pyinstaller --onefile --windowed --name "Lion-AI-Detection" --icon lion_icon.png --add-data "lion_icon.png:." --add-data "lion_icon.ico:." deepfake_monitor.py
+        else
+          echo "❌ Cannot build: deepfake_monitor.py not found"
+          exit 1
+        fi
     
     - name: Upload macOS artifact
       uses: actions/upload-artifact@v3
@@ -92,12 +128,30 @@ jobs:
         python -m pip install --upgrade pip
         pip install pyaudio numpy pillow pystray requests plyer pyinstaller
     
-    - name: Create icon
-      run: python create_icon.py
+    - name: Check files
+      run: |
+        echo "Checking for required files..."
+        ls -la
+        if [ -f "deepfake_monitor.py" ]; then echo "✅ deepfake_monitor.py found"; else echo "❌ deepfake_monitor.py missing"; fi
+        if [ -f "create_icon.py" ]; then echo "✅ create_icon.py found"; else echo "❌ create_icon.py missing"; fi
+    
+    - name: Create icon (or use existing)
+      run: |
+        if [ -f "create_icon.py" ]; then
+          python create_icon.py
+        else
+          echo "Creating basic icon with Python..."
+          python -c "from PIL import Image; img=Image.new('RGB',(64,64),'#FFD700'); img.save('lion_icon.png')"
+        fi
       
     - name: Build Linux executable
       run: |
-        pyinstaller --onefile --name "Lion-AI-Detection" --icon lion_icon.png --add-data "lion_icon.png:." --add-data "lion_icon.ico:." deepfake_monitor.py
+        if [ -f "deepfake_monitor.py" ]; then
+          pyinstaller --onefile --name "Lion-AI-Detection" --icon lion_icon.png --add-data "lion_icon.png:." --add-data "lion_icon.ico:." deepfake_monitor.py
+        else
+          echo "❌ Cannot build: deepfake_monitor.py not found"
+          exit 1
+        fi
     
     - name: Upload Linux artifact
       uses: actions/upload-artifact@v3
