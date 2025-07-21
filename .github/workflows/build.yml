@@ -1,0 +1,106 @@
+# .github/workflows/build.yml
+name: Build Lion AI Detection
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:  # Allows manual trigger
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pyaudio numpy pillow pystray requests plyer pyinstaller
+    
+    - name: Create icon
+      run: python create_icon.py
+      
+    - name: Build Windows executable
+      run: |
+        pyinstaller --onefile --windowed --name "Lion-AI-Detection" --icon lion_icon.ico --add-data "lion_icon.png;." --add-data "lion_icon.ico;." deepfake_monitor.py
+    
+    - name: Upload Windows artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: Lion-AI-Detection-Windows
+        path: dist/Lion-AI-Detection.exe
+
+  build-macos:
+    runs-on: macos-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install system dependencies
+      run: |
+        brew install portaudio
+        
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pyaudio numpy pillow pystray requests plyer pyinstaller
+    
+    - name: Create icon
+      run: python create_icon.py
+      
+    - name: Build macOS executable
+      run: |
+        pyinstaller --onefile --windowed --name "Lion-AI-Detection" --icon lion_icon.png --add-data "lion_icon.png:." --add-data "lion_icon.ico:." deepfake_monitor.py
+    
+    - name: Upload macOS artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: Lion-AI-Detection-macOS
+        path: dist/Lion-AI-Detection.app
+
+  build-linux:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y portaudio19-dev python3-tk
+        
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pyaudio numpy pillow pystray requests plyer pyinstaller
+    
+    - name: Create icon
+      run: python create_icon.py
+      
+    - name: Build Linux executable
+      run: |
+        pyinstaller --onefile --name "Lion-AI-Detection" --icon lion_icon.png --add-data "lion_icon.png:." --add-data "lion_icon.ico:." deepfake_monitor.py
+    
+    - name: Upload Linux artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: Lion-AI-Detection-Linux
+        path: dist/Lion-AI-Detection
