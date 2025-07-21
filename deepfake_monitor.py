@@ -30,20 +30,20 @@ class StreamingDeepfakeMonitor:
     def __init__(self):
         self.is_monitoring = False
         
-        # Audio settings - optimized for streaming
+        # Audio settings - optimized for better detection
         self.FORMAT = pyaudio.paInt16
         self.CHANNELS = 1
-        self.RATE = 22050  # Optimized for API
-        self.CHUNK = 2048
-        self.STREAM_INTERVAL = 1.0  # Stream every 1000ms
-        self.BUFFER_DURATION = 4.0  # Keep 2 seconds of audio
+        self.RATE = 22050  # Higher quality for better detection
+        self.CHUNK = 2048  # Larger chunks for smoother capture
+        self.STREAM_INTERVAL = 1.0  # Stream every 1000ms (more context)
+        self.BUFFER_DURATION = 4.0  # Keep 4 seconds of audio
         
         # API settings
         self.HF_API_URL = 'https://pauliano22-deepfake-audio-detector.hf.space/gradio_api'
-        self.MIN_VOLUME_THRESHOLD = 0.0005
+        self.MIN_VOLUME_THRESHOLD = 0.0005  # More sensitive
         
         # Detection settings
-        self.alert_threshold = 0.6
+        self.alert_threshold = 0.5  # Lower threshold for better detection
         self.sensitivity = "Medium"
         self.alert_sound = True
         self.alert_popup = True
@@ -249,7 +249,7 @@ class StreamingDeepfakeMonitor:
                 'prediction': 'FAKE' if is_fake else 'REAL',
                 'confidence': max(real_prob, fake_prob),
                 'probabilities': {'real': real_prob, 'fake': fake_prob},
-                'is_suspicious': fake_prob > 0.6,
+                'is_suspicious': fake_prob > 0.5,  # More sensitive threshold
                 'raw_result': markdown_result,
                 'timestamp': datetime.now().isoformat()
             }
@@ -295,8 +295,8 @@ class StreamingDeepfakeMonitor:
                         self.streaming_buffer.append(audio_np)
                         self.buffer_duration += len(audio_np) / self.RATE
                         
-                        # Keep buffer size manageable (max 3 seconds)
-                        while self.buffer_duration > 3.0:
+                        # Keep buffer size manageable (max 5 seconds for better context)
+                        while self.buffer_duration > 5.0:
                             removed_chunk = self.streaming_buffer.pop(0)
                             self.buffer_duration -= len(removed_chunk) / self.RATE
                     
@@ -333,7 +333,7 @@ class StreamingDeepfakeMonitor:
                 
                 # Get current buffer
                 with self.buffer_lock:
-                    if len(self.streaming_buffer) == 0 or self.buffer_duration < 1.0:
+                    if len(self.streaming_buffer) == 0 or self.buffer_duration < 2.5:  # Need more audio context
                         continue
                         
                     # Copy buffer
@@ -452,7 +452,7 @@ class StreamingDeepfakeMonitor:
                 def send_notification():
                     try:
                         self.tray_icon.notify(
-                            title="🚨 Real-Time Deepfake!",
+                            title="🦁 Lion - AI Detection Alert",
                             message=f"AI voice detected: {confidence:.1%} confidence (#{chunk_id})"
                         )
                     except Exception as e:
@@ -484,9 +484,9 @@ class StreamingDeepfakeMonitor:
             from plyer import notification
             
             notification.notify(
-                title="🚨 Real-Time Deepfake Detected!",
+                title="🦁 Lion - AI Detection Alert!",
                 message=f"AI voice detected with {confidence:.1%} confidence\nChunk #{chunk_id} - {latency}ms detection",
-                app_name="Desktop Deepfake Monitor",
+                app_name="Lion - AI Detection",
                 timeout=10
             )
         except Exception as e:
@@ -500,8 +500,8 @@ class StreamingDeepfakeMonitor:
                 popup_root.withdraw()
                 
                 messagebox.showwarning(
-                    "🚨 Real-Time Deepfake Detected!",
-                    f"AI-generated voice detected in real-time!\n\nConfidence: {confidence:.1%}\nChunk: #{chunk_id}\nDetection Time: {latency}ms\nTime: {datetime.now().strftime('%H:%M:%S')}\n\nThis audio may not be authentic."
+                    "🦁 Lion - AI Detection Alert!",
+                    f"AI-generated voice detected!\n\nConfidence: {confidence:.1%}\nChunk: #{chunk_id}\nDetection Time: {latency}ms\nTime: {datetime.now().strftime('%H:%M:%S')}\n\nThis audio may not be authentic."
                 )
                 
                 popup_root.destroy()
@@ -541,8 +541,70 @@ class StreamingDeepfakeMonitor:
     
     def create_system_tray(self):
         """Create system tray icon"""
-        # Create a simple red icon for deepfake monitoring
-        icon_image = Image.new('RGB', (64, 64), color='red')
+        # Create a Lion-themed icon with AI detector branding
+        icon_image = Image.new('RGBA', (64, 64), color=(0, 0, 0, 0))  # Transparent background
+        
+        # Try to load a custom icon file first
+        try:
+            # Look for icon files in the current directory
+            for icon_file in ['lion_icon.png', 'lion_icon.ico', 'icon.png', 'logo.png']:
+                if os.path.exists(icon_file):
+                    icon_image = Image.open(icon_file).convert('RGBA')
+                    icon_image = icon_image.resize((64, 64), Image.Resampling.LANCZOS)
+                    print(f"🦁 Using custom icon: {icon_file}")
+                    break
+        except Exception as e:
+            print(f"⚠️ Could not load custom icon: {e}")
+        
+        # Fallback: Create a Lion-themed icon programmatically
+        if icon_image.size != (64, 64) or not any(icon_image.getdata()):
+            try:
+                from PIL import ImageDraw, ImageFont
+                
+                # Create gradient background (gold to red)
+                icon_image = Image.new('RGB', (64, 64), color='#FFD700')  # Gold background
+                draw = ImageDraw.Draw(icon_image)
+                
+                # Draw a red border
+                draw.rectangle([0, 0, 63, 63], outline='#FF0000', width=3)
+                
+                # Draw lion emoji or "L" if emoji not available
+                try:
+                    # Try to use a system font
+                    font = ImageFont.truetype("arial.ttf", 36)
+                except:
+                    try:
+                        font = ImageFont.load_default()
+                    except:
+                        font = None
+                
+                if font:
+                    # Draw "L" for Lion
+                    text = "🦁"  # Lion emoji, fallback to "L" if not supported
+                    try:
+                        # Try lion emoji first
+                        bbox = draw.textbbox((0, 0), text, font=font)
+                        text_width = bbox[2] - bbox[0]
+                        text_height = bbox[3] - bbox[1]
+                        x = (64 - text_width) // 2
+                        y = (64 - text_height) // 2
+                        draw.text((x, y), text, fill='#000000', font=font)
+                    except:
+                        # Fallback to "L"
+                        text = "L"
+                        bbox = draw.textbbox((0, 0), text, font=font)
+                        text_width = bbox[2] - bbox[0]
+                        text_height = bbox[3] - bbox[1]
+                        x = (64 - text_width) // 2
+                        y = (64 - text_height) // 2
+                        draw.text((x, y), text, fill='#000000', font=font)
+                
+                print("🎨 Created Lion-themed icon")
+                
+            except Exception as e:
+                print(f"⚠️ Icon creation failed: {e}")
+                # Ultimate fallback: simple colored square
+                icon_image = Image.new('RGB', (64, 64), color='#FFD700')
         
         menu = Menu(
             MenuItem("🎤 Start Real-Time Monitoring", self.start_monitoring, 
@@ -558,7 +620,7 @@ class StreamingDeepfakeMonitor:
             MenuItem("❌ Exit", self.quit_application)
         )
         
-        self.tray_icon = pystray.Icon("streaming_deepfake_monitor", icon_image, "Desktop Deepfake Monitor", menu)
+        self.tray_icon = pystray.Icon("lion_ai_detector", icon_image, "Lion - AI Detection", menu)
     
     def start_monitoring(self, icon=None, item=None):
         """Start real-time streaming monitoring"""
@@ -580,8 +642,8 @@ class StreamingDeepfakeMonitor:
             if self.tray_icon:
                 try:
                     self.tray_icon.notify(
-                        "Real-Time Monitoring Started!",
-                        f"Streaming detection active (threshold: {self.alert_threshold})"
+                        "🦁 Lion - Monitoring Started!",
+                        f"AI detection active (threshold: {self.alert_threshold})"
                     )
                 except:
                     pass
@@ -605,7 +667,7 @@ class StreamingDeepfakeMonitor:
             
             if self.tray_icon:
                 try:
-                    self.tray_icon.notify("Monitoring Stopped", "Real-time detection paused")
+                    self.tray_icon.notify("🦁 Lion - Monitoring Stopped", "AI detection paused")
                 except:
                     pass
     
@@ -704,7 +766,7 @@ Current Settings:
     
     def run(self):
         """Run the application"""
-        print("🚀 Starting Desktop Deepfake Monitor (Real-Time Streaming)")
+        print("🚀 Starting Lion - AI Detection (Desktop Monitor)")
         print(f"🎯 Alert threshold: {self.alert_threshold}")
         print(f"⚡ Streaming interval: {self.STREAM_INTERVAL}s")
         print(f"🌐 API endpoint: {self.HF_API_URL}")
@@ -721,7 +783,7 @@ Current Settings:
     
     def console_mode(self):
         """Fallback console mode"""
-        print("\n📟 Console Mode - Real-Time Streaming")
+        print("\n📟 Console Mode - Lion AI Detection")
         print("Commands: start, stop, test, stats, settings, quit")
         
         while True:
