@@ -30,22 +30,22 @@ class StreamingDeepfakeMonitor:
     def __init__(self):
         self.is_monitoring = False
         
-        # Audio settings - optimized for better detection
+        # Audio settings - optimized for maximum detection accuracy
         self.FORMAT = pyaudio.paInt16
         self.CHANNELS = 1
-        self.RATE = 22050  # Higher quality for better detection
-        self.CHUNK = 2048  # Larger chunks for smoother capture
-        self.STREAM_INTERVAL = 1.0  # Stream every 1000ms (more context)
-        self.BUFFER_DURATION = 4.0  # Keep 4 seconds of audio
+        self.RATE = 22050  # High quality for better detection
+        self.CHUNK = 4096  # Larger chunks for smoother capture
+        self.STREAM_INTERVAL = 0.5  # Stream every 500ms (faster detection)
+        self.BUFFER_DURATION = 8.0  # Keep 8 seconds of audio for more context
         
         # API settings
         self.HF_API_URL = 'https://pauliano22-deepfake-audio-detector.hf.space/gradio_api'
-        self.MIN_VOLUME_THRESHOLD = 0.0005  # More sensitive
+        self.MIN_VOLUME_THRESHOLD = 0.0001  # Much more sensitive
         
-        # Detection settings
-        self.alert_threshold = 0.5  # Lower threshold for better detection
-        self.sensitivity = "Medium"
-        self.alert_sound = True
+        # Detection settings - optimized for catching more deepfakes
+        self.alert_threshold = 0.3  # Lower threshold = more sensitive
+        self.sensitivity = "High"
+        self.alert_sound = False  # Disabled audio alerts to prevent annoyance
         self.alert_popup = True
         self.log_detections = True
         
@@ -54,11 +54,14 @@ class StreamingDeepfakeMonitor:
         self.buffer_duration = 0.0
         self.buffer_lock = threading.Lock()
         
-        # Detection tracking
+        # Detection tracking - smart alert management
         self.detection_history = []
         self.recent_detections = []
         self.last_alert_time = 0
-        self.alert_cooldown = 3.0  # 3 seconds between alerts
+        self.alert_cooldown = 10.0  # 10 second cooldown between different detection events
+        self.consecutive_detections = 0
+        self.in_detection_event = False
+        self.detection_event_start = 0
         
         # Performance tracking
         self.total_detections = 0
@@ -67,6 +70,9 @@ class StreamingDeepfakeMonitor:
         # GUI components
         self.tray_icon = None
         self.settings_window = None
+        
+        # Auto-start status
+        self.auto_start_enabled = self.check_auto_start_enabled()
         
         # Setup logging
         self.setup_logging()
@@ -89,6 +95,91 @@ class StreamingDeepfakeMonitor:
                     print(f"✅ {package} installed successfully!")
                 except Exception as e:
                     print(f"⚠️ Could not install {package}: {e}")
+    
+    def check_auto_start_enabled(self):
+        """Check if auto-start is enabled in Windows registry"""
+        try:
+            import winreg
+            key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, 
+                               r"Software\Microsoft\Windows\CurrentVersion\Run")
+            try:
+                winreg.QueryValueEx(key, "Lion-AI-Detection")
+                winreg.CloseKey(key)
+                return True
+            except FileNotFoundError:
+                winreg.CloseKey(key)
+                return False
+        except Exception:
+            return False
+    
+    def enable_auto_start(self):
+        """Add to Windows startup (auto-start with Windows)"""
+        try:
+            import winreg
+            import sys
+            
+            # Get the path to the current executable
+            if getattr(sys, 'frozen', False):
+                # Running as compiled executable
+                exe_path = sys.executable
+            else:
+                # Running as Python script (for development)
+                exe_path = f'"{sys.executable}" "{os.path.abspath(__file__)}"'
+            
+            # Add to Windows registry
+            key = winreg.OpenKey(winreg.HKEY_CURRENT_USER,
+                               r"Software\Microsoft\Windows\CurrentVersion\Run",
+                               0, winreg.KEY_SET_VALUE)
+            
+            winreg.SetValueEx(key, "Lion-AI-Detection", 0, winreg.REG_SZ, exe_path)
+            winreg.CloseKey(key)
+            
+            self.auto_start_enabled = True
+            print("✅ Auto-start enabled - Lion AI Detection will start with Windows")
+            return True
+            
+        except Exception as e:
+            print(f"❌ Failed to enable auto-start: {e}")
+            return False
+    
+    def disable_auto_start(self):
+        """Remove from Windows startup"""
+        try:
+            import winreg
+            
+            key = winreg.OpenKey(winreg.HKEY_CURRENT_USER,
+                               r"Software\Microsoft\Windows\CurrentVersion\Run",
+                               0, winreg.KEY_SET_VALUE)
+            
+            winreg.DeleteValue(key, "Lion-AI-Detection")
+            winreg.CloseKey(key)
+            
+            self.auto_start_enabled = False
+            print("✅ Auto-start disabled")
+            return True
+            
+        except Exception as e:
+            print(f"❌ Failed to disable auto-start: {e}")
+            return False
+    
+    def toggle_auto_start(self, icon=None, item=None):
+        """Toggle auto-start setting"""
+        if self.auto_start_enabled:
+            if self.disable_auto_start():
+                if self.tray_icon:
+                    try:
+                        self.tray_icon.notify("Auto-Start Disabled", 
+                                            "Lion AI Detection won't start with Windows")
+                    except:
+                        pass
+        else:
+            if self.enable_auto_start():
+                if self.tray_icon:
+                    try:
+                        self.tray_icon.notify("Auto-Start Enabled", 
+                                            "Lion AI Detection will start with Windows")
+                    except:
+                        pass
     
     def setup_logging(self):
         """Setup detection logging"""
@@ -194,6 +285,7 @@ class StreamingDeepfakeMonitor:
     
     async def poll_streaming_results(self, event_id):
         """Poll for API results"""
+        import asyncio
         max_attempts = 15
         
         for attempt in range(max_attempts):
@@ -249,7 +341,7 @@ class StreamingDeepfakeMonitor:
                 'prediction': 'FAKE' if is_fake else 'REAL',
                 'confidence': max(real_prob, fake_prob),
                 'probabilities': {'real': real_prob, 'fake': fake_prob},
-                'is_suspicious': fake_prob > 0.5,  # More sensitive threshold
+                'is_suspicious': fake_prob > 0.3,  # Much more sensitive threshold (30% instead of 50%)
                 'raw_result': markdown_result,
                 'timestamp': datetime.now().isoformat()
             }
@@ -295,8 +387,8 @@ class StreamingDeepfakeMonitor:
                         self.streaming_buffer.append(audio_np)
                         self.buffer_duration += len(audio_np) / self.RATE
                         
-                        # Keep buffer size manageable (max 5 seconds for better context)
-                        while self.buffer_duration > 5.0:
+                        # Keep buffer size manageable (max 10 seconds for maximum context)
+                        while self.buffer_duration > 10.0:
                             removed_chunk = self.streaming_buffer.pop(0)
                             self.buffer_duration -= len(removed_chunk) / self.RATE
                     
@@ -333,10 +425,10 @@ class StreamingDeepfakeMonitor:
                 
                 # Get current buffer
                 with self.buffer_lock:
-                    if len(self.streaming_buffer) == 0 or self.buffer_duration < 2.5:  # Need more audio context
+                    if len(self.streaming_buffer) == 0 or self.buffer_duration < 4.0:  # Need 4+ seconds of context
                         continue
                         
-                    # Copy buffer
+                    # Copy buffer for processing
                     buffer_copy = list(self.streaming_buffer)
                     duration = self.buffer_duration
                 
@@ -344,15 +436,16 @@ class StreamingDeepfakeMonitor:
                 combined_audio = np.concatenate(buffer_copy)
                 volume = self.calculate_rms(combined_audio)
                 
-                # Skip if too quiet
+                # Skip if too quiet (but be very sensitive)
                 if volume < self.MIN_VOLUME_THRESHOLD:
                     print(f"🔇 Audio too quiet ({volume:.6f}), skipping...")
                     continue
                 
                 chunk_count += 1
-                print(f"\n🎵 Processing stream chunk #{chunk_count} ({duration:.1f}s, volume: {volume:.6f})")
+                print(f"\n🎵 Processing LARGE stream chunk #{chunk_count} ({duration:.1f}s, volume: {volume:.6f})")
+                print(f"📊 Buffer size: {len(combined_audio)} samples ({len(combined_audio)/self.RATE:.2f}s of audio)")
                 
-                # Process chunk
+                # Process larger chunk with more context
                 loop.run_until_complete(self.process_streaming_chunk(combined_audio, chunk_count))
                 
         except Exception as e:
@@ -366,32 +459,37 @@ class StreamingDeepfakeMonitor:
         start_time = time.time()
         
         try:
-            # Create WAV blob
+            # Create larger WAV blob with more audio context
             wav_blob = self.create_wav_blob(audio_data, self.RATE)
-            print(f"📦 Analyzing stream #{chunk_id}: {len(wav_blob)} bytes")
+            audio_duration = len(audio_data) / self.RATE
+            print(f"📦 Analyzing LARGE stream #{chunk_id}: {len(wav_blob)} bytes ({audio_duration:.1f}s audio)")
             
-            # Send to API
+            # Send to API with larger chunk
             result = await self.send_to_streaming_api(wav_blob)
             
             if result and not result.get('error'):
                 latency = int((time.time() - start_time) * 1000)
                 self.detection_latency.append(latency)
                 
-                print(f"🎯 Stream result #{chunk_id}: {result.get('prediction')} ({result.get('confidence', 0):.3f}) - {latency}ms")
+                prediction = result.get('prediction', 'UNKNOWN')
+                confidence = result.get('confidence', 0)
+                
+                print(f"🎯 LARGE stream result #{chunk_id}: {prediction} ({confidence:.3f}) - {latency}ms - {audio_duration:.1f}s processed")
                 
                 result['chunk_id'] = chunk_id
                 result['latency'] = latency
-                result['source'] = 'Desktop Stream'
+                result['audio_duration'] = audio_duration
+                result['source'] = 'Desktop Stream (Large Chunks)'
                 
                 self.handle_streaming_result(result)
             else:
-                print(f"❌ Stream API error #{chunk_id}: {result.get('error', 'Unknown error')}")
+                print(f"❌ Large stream API error #{chunk_id}: {result.get('error', 'Unknown error')}")
                 
         except Exception as e:
-            print(f"❌ Stream processing failed #{chunk_id}: {e}")
+            print(f"❌ Large stream processing failed #{chunk_id}: {e}")
     
     def handle_streaming_result(self, result):
-        """Handle streaming detection result"""
+        """Handle streaming detection result with smart alert management"""
         self.total_detections += 1
         
         # Add to history
@@ -399,19 +497,50 @@ class StreamingDeepfakeMonitor:
         if len(self.detection_history) > 100:
             self.detection_history.pop(0)
         
-        # Check for alerts
-        if result.get('is_suspicious') and self.should_show_alert():
-            confidence = result.get('confidence', 0)
-            print(f"🚨 STREAMING ALERT! Confidence: {confidence:.3f}")
-            self.trigger_streaming_alert(result)
-            self.last_alert_time = time.time()
+        is_suspicious = result.get('is_suspicious', False)
+        confidence = result.get('confidence', 0)
+        chunk_id = result.get('chunk_id', 'N/A')
         
-        # Log detection
+        current_time = time.time()
+        
+        if is_suspicious:
+            print(f"🚨 SUSPICIOUS: Chunk #{chunk_id} - Confidence: {confidence:.3f}")
+            
+            # Smart alert logic - only alert once per detection event
+            if not self.in_detection_event:
+                # Start of new detection event
+                self.in_detection_event = True
+                self.detection_event_start = current_time
+                self.consecutive_detections = 1
+                
+                # Show alert for new detection event
+                if self.should_show_alert():
+                    print(f"🔥 NEW DEEPFAKE EVENT DETECTED! Starting alert sequence...")
+                    self.trigger_streaming_alert(result)
+                    self.last_alert_time = current_time
+                
+            else:
+                # Continuing detection event
+                self.consecutive_detections += 1
+                print(f"📊 Continuing detection event: {self.consecutive_detections} consecutive chunks")
+        else:
+            # Not suspicious - check if we should end detection event
+            if self.in_detection_event:
+                # End detection event after clean result
+                detection_duration = current_time - self.detection_event_start
+                print(f"✅ Detection event ended. Duration: {detection_duration:.1f}s, Total chunks: {self.consecutive_detections}")
+                
+                self.in_detection_event = False
+                self.consecutive_detections = 0
+                self.detection_event_start = 0
+        
+        # Log all detections (both suspicious and clean)
         if self.log_detections:
-            logging.info(f"Stream Detection: {result.get('prediction')} (confidence: {result.get('confidence', 0):.3f})")
+            status = "SUSPICIOUS" if is_suspicious else "CLEAN"
+            logging.info(f"Stream Detection: {result.get('prediction')} - {status} (confidence: {confidence:.3f}) - Chunk #{chunk_id}")
     
     def should_show_alert(self):
-        """Check if we should show an alert (rate limiting)"""
+        """Check if we should show an alert (prevents spam)"""
         return time.time() - self.last_alert_time >= self.alert_cooldown
     
     def trigger_streaming_alert(self, result):
@@ -423,28 +552,15 @@ class StreamingDeepfakeMonitor:
         alert_message = f"🚨 REAL-TIME DEEPFAKE DETECTED!\nChunk: #{chunk_id}\nConfidence: {confidence:.1%}\nLatency: {latency}ms\nTime: {datetime.now().strftime('%H:%M:%S')}"
         
         print("=" * 60)
-        print("🚨 STREAMING DEEPFAKE ALERT! 🚨")
+        print("🚨 DEEPFAKE EVENT ALERT! 🚨")
         print(f"Chunk: #{chunk_id}")
         print(f"Confidence: {confidence:.1%}")
         print(f"Detection Time: {latency}ms")
         print(f"Time: {datetime.now().strftime('%H:%M:%S')}")
         print("=" * 60)
         
-        # Sound alert
-        if self.alert_sound:
-            try:
-                def play_alert_sound():
-                    try:
-                        # Play urgent triple beep
-                        for i in range(3):
-                            winsound.Beep(1200, 200)
-                            time.sleep(0.1)
-                    except:
-                        winsound.PlaySound("SystemExclamation", winsound.SND_ALIAS)
-                
-                threading.Thread(target=play_alert_sound, daemon=True).start()
-            except Exception as e:
-                print(f"Sound alert failed: {e}")
+        # NO SOUND ALERTS - commented out to prevent annoyance
+        # Sound alerts are disabled to prevent spam
         
         # System notification
         if self.tray_icon:
@@ -452,8 +568,8 @@ class StreamingDeepfakeMonitor:
                 def send_notification():
                     try:
                         self.tray_icon.notify(
-                            title="🦁 Lion - AI Detection Alert",
-                            message=f"AI voice detected: {confidence:.1%} confidence (#{chunk_id})"
+                            title="🦁 Lion - AI Detection Event",
+                            message=f"Deepfake audio detected: {confidence:.1%} confidence"
                         )
                     except Exception as e:
                         print(f"Notification failed: {e}")
@@ -462,13 +578,13 @@ class StreamingDeepfakeMonitor:
             except:
                 pass
         
-        # Windows toast
+        # Windows toast (silent)
         try:
             self.show_windows_toast(confidence, chunk_id, latency)
         except Exception as e:
             print(f"Toast notification failed: {e}")
         
-        # Popup alert
+        # Popup alert (reduced frequency)
         if self.alert_popup:
             try:
                 self.show_thread_safe_popup(confidence, chunk_id, latency)
@@ -476,7 +592,7 @@ class StreamingDeepfakeMonitor:
                 print(f"Popup failed: {e}")
         
         # Log alert
-        logging.warning(f"STREAMING DEEPFAKE ALERT: Chunk #{chunk_id}, Confidence {confidence:.3f}, Latency {latency}ms")
+        logging.warning(f"DEEPFAKE EVENT: Chunk #{chunk_id}, Confidence {confidence:.3f}, Latency {latency}ms")
     
     def show_windows_toast(self, confidence, chunk_id, latency):
         """Show Windows toast notification"""
@@ -484,10 +600,10 @@ class StreamingDeepfakeMonitor:
             from plyer import notification
             
             notification.notify(
-                title="🦁 Lion - AI Detection Alert!",
-                message=f"AI voice detected with {confidence:.1%} confidence\nChunk #{chunk_id} - {latency}ms detection",
+                title="🦁 Lion - Deepfake Event Detected",
+                message=f"AI voice event detected with {confidence:.1%} confidence",
                 app_name="Lion - AI Detection",
-                timeout=10
+                timeout=5  # Shorter timeout
             )
         except Exception as e:
             print(f"Toast notification error: {e}")
@@ -500,8 +616,8 @@ class StreamingDeepfakeMonitor:
                 popup_root.withdraw()
                 
                 messagebox.showwarning(
-                    "🦁 Lion - AI Detection Alert!",
-                    f"AI-generated voice detected!\n\nConfidence: {confidence:.1%}\nChunk: #{chunk_id}\nDetection Time: {latency}ms\nTime: {datetime.now().strftime('%H:%M:%S')}\n\nThis audio may not be authentic."
+                    "🦁 Lion - AI Detection Event!",
+                    f"Deepfake audio event detected!\n\nConfidence: {confidence:.1%}\nTime: {datetime.now().strftime('%H:%M:%S')}\n\nMultiple chunks detected - this appears to be AI-generated audio."
                 )
                 
                 popup_root.destroy()
@@ -541,25 +657,39 @@ class StreamingDeepfakeMonitor:
     
     def create_system_tray(self):
         """Create system tray icon"""
-        # Create a Lion-themed icon with AI detector branding
-        icon_image = Image.new('RGBA', (64, 64), color=(0, 0, 0, 0))  # Transparent background
+        icon_image = None
         
-        # Try to load a custom icon file first
-        try:
-            # Look for icon files in the current directory
-            for icon_file in ['lion_icon.png', 'lion_icon.ico', 'icon.png', 'logo.png']:
+        # For PyInstaller executables, check if we're bundled
+        if getattr(sys, 'frozen', False):
+            # Running as compiled executable
+            bundle_dir = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
+            icon_paths = [
+                os.path.join(bundle_dir, 'lion_icon.png'),
+                os.path.join(bundle_dir, 'lion_icon.ico'),
+                os.path.join(bundle_dir, 'icon.png')
+            ]
+            print(f"🔍 Looking for bundled icons in: {bundle_dir}")
+        else:
+            # Running as Python script
+            icon_paths = ['lion_icon.png', 'lion_icon.ico', 'icon.png', 'logo.png']
+            print("🔍 Looking for icons in current directory")
+        
+        # Try to load icon file
+        for icon_file in icon_paths:
+            try:
                 if os.path.exists(icon_file):
                     icon_image = Image.open(icon_file).convert('RGBA')
                     icon_image = icon_image.resize((64, 64), Image.Resampling.LANCZOS)
-                    print(f"🦁 Using custom icon: {icon_file}")
+                    print(f"🦁 Using icon: {icon_file}")
                     break
-        except Exception as e:
-            print(f"⚠️ Could not load custom icon: {e}")
+            except Exception as e:
+                print(f"⚠️ Could not load {icon_file}: {e}")
         
         # Fallback: Create a Lion-themed icon programmatically
-        if icon_image.size != (64, 64) or not any(icon_image.getdata()):
+        if icon_image is None:
             try:
                 from PIL import ImageDraw, ImageFont
+                print("🎨 Creating programmatic Lion icon...")
                 
                 # Create gradient background (gold to red)
                 icon_image = Image.new('RGB', (64, 64), color='#FFD700')  # Gold background
@@ -568,7 +698,7 @@ class StreamingDeepfakeMonitor:
                 # Draw a red border
                 draw.rectangle([0, 0, 63, 63], outline='#FF0000', width=3)
                 
-                # Draw lion emoji or "L" if emoji not available
+                # Draw "L" for Lion
                 try:
                     # Try to use a system font
                     font = ImageFont.truetype("arial.ttf", 36)
@@ -579,10 +709,8 @@ class StreamingDeepfakeMonitor:
                         font = None
                 
                 if font:
-                    # Draw "L" for Lion
-                    text = "🦁"  # Lion emoji, fallback to "L" if not supported
+                    text = "L"  # Simple "L" for Lion
                     try:
-                        # Try lion emoji first
                         bbox = draw.textbbox((0, 0), text, font=font)
                         text_width = bbox[2] - bbox[0]
                         text_height = bbox[3] - bbox[1]
@@ -590,27 +718,25 @@ class StreamingDeepfakeMonitor:
                         y = (64 - text_height) // 2
                         draw.text((x, y), text, fill='#000000', font=font)
                     except:
-                        # Fallback to "L"
-                        text = "L"
-                        bbox = draw.textbbox((0, 0), text, font=font)
-                        text_width = bbox[2] - bbox[0]
-                        text_height = bbox[3] - bbox[1]
-                        x = (64 - text_width) // 2
-                        y = (64 - text_height) // 2
-                        draw.text((x, y), text, fill='#000000', font=font)
+                        # Even simpler fallback
+                        draw.text((25, 15), text, fill='#000000')
                 
-                print("🎨 Created Lion-themed icon")
+                print("✅ Created programmatic Lion icon")
                 
             except Exception as e:
                 print(f"⚠️ Icon creation failed: {e}")
                 # Ultimate fallback: simple colored square
                 icon_image = Image.new('RGB', (64, 64), color='#FFD700')
+                print("🟡 Using simple gold square icon")
         
         menu = Menu(
             MenuItem("🎤 Start Real-Time Monitoring", self.start_monitoring, 
                     enabled=lambda item: not self.is_monitoring),
             MenuItem("⏹️ Stop Monitoring", self.stop_monitoring, 
                     enabled=lambda item: self.is_monitoring),
+            Menu.SEPARATOR,
+            MenuItem("🔄 Start with Windows", self.toggle_auto_start,
+                    checked=lambda item: self.auto_start_enabled),
             Menu.SEPARATOR,
             MenuItem("🧪 Test Alert System", self.test_alert),
             MenuItem("📊 Show Statistics", self.show_statistics),
@@ -642,8 +768,8 @@ class StreamingDeepfakeMonitor:
             if self.tray_icon:
                 try:
                     self.tray_icon.notify(
-                        "🦁 Lion - Monitoring Started!",
-                        f"AI detection active (threshold: {self.alert_threshold})"
+                        "🦁 Lion - OPTIMIZED Monitoring Started!",
+                        f"HIGH SENSITIVITY detection active (threshold: {self.alert_threshold})"
                     )
                 except:
                     pass
@@ -653,10 +779,15 @@ class StreamingDeepfakeMonitor:
         if self.is_monitoring:
             self.is_monitoring = False
             
-            # Clear buffers
+            # Clear detection state
             with self.buffer_lock:
                 self.streaming_buffer.clear()
                 self.buffer_duration = 0.0
+            
+            # Reset detection event state
+            self.in_detection_event = False
+            self.consecutive_detections = 0
+            self.detection_event_start = 0
             
             print("⏹️ Real-time monitoring stopped!")
             
@@ -764,6 +895,18 @@ Current Settings:
         
         os._exit(0)
     
+    def show_first_time_setup(self):
+        """Show first-time setup instructions"""
+        print("\n" + "="*60)
+        print("🦁 Welcome to Lion - AI Detection Monitor!")
+        print("="*60)
+        print("📋 First-time setup instructions:")
+        print("   1. Enable 'Stereo Mix' in Windows Sound settings for system audio")
+        print("   2. Right-click the system tray icon to start monitoring")
+        print("   3. Configure alert settings from the context menu")
+        print("   4. Check 'Start with Windows' for automatic protection")
+        print("="*60)
+    
     def run(self):
         """Run the application"""
         print("🚀 Starting Lion - AI Detection (Desktop Monitor)")
@@ -771,6 +914,9 @@ Current Settings:
         print(f"⚡ Streaming interval: {self.STREAM_INTERVAL}s")
         print(f"🌐 API endpoint: {self.HF_API_URL}")
         print("📋 Right-click system tray icon to start monitoring")
+        
+        # Show first-time setup for new users
+        self.show_first_time_setup()
         
         # Create and run system tray
         self.create_system_tray()
