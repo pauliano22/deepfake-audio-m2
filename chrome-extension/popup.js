@@ -1,3 +1,14 @@
+// Hide loading screen after animations complete
+setTimeout(() => {
+    const loadingScreen = document.getElementById('loadingScreen');
+    if (loadingScreen) {
+        loadingScreen.classList.add('hidden');
+        setTimeout(() => {
+            loadingScreen.style.display = 'none';
+        }, 600);
+    }
+}, 2500);
+
 // popup.js - Simplified AI Voice Detector popup
 let isMonitoring = false;
 let currentPage = 'main';
