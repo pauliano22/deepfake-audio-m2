@@ -1,16 +1,23 @@
-// content.js - Real-time streaming AI voice detection
+// content.js - Mac-Compatible Real-time streaming AI voice detection
 if (window.aiVoiceDetectorInjected) {
     console.log('🔄 AI Voice Detector already injected, skipping...');
     throw new Error('Already injected');
 } else {
     window.aiVoiceDetectorInjected = true;
-    console.log('🎤 AI Voice Detector - Real-Time Streaming');
+    console.log('🎤 AI Voice Detector - Mac-Compatible Real-Time Streaming');
 
     let isMonitoring = false;
     let audioContext;
     let mediaStream = null;
-    let scriptProcessor = null;
+    let audioWorkletNode = null;
+    let scriptProcessor = null; // Fallback for older browsers
     let streamingInterval = null;
+    
+    // Detect Mac/Safari
+    const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+    
+    console.log(`🖥️ Platform detected: ${isMac ? 'Mac' : 'Windows/Linux'}, Safari: ${isSafari}`);
     
     // Global state management
     if (!window.aiVoiceDetectorGlobalState) {
@@ -23,16 +30,15 @@ if (window.aiVoiceDetectorInjected) {
     
     const globalState = window.aiVoiceDetectorGlobalState;
 
-    // Real-time streaming parameters
-    const STREAM_INTERVAL = 500; // Send audio every 500ms
-    const CHUNK_SIZE = 8000; // 0.5 seconds at 16kHz
-    const MIN_VOLUME_THRESHOLD = 0.001;
+    // Mac-compatible streaming parameters
+    const STREAM_INTERVAL = isMac ? 750 : 500; // Slower on Mac for stability
+    const MIN_VOLUME_THRESHOLD = isMac ? 0.0005 : 0.001; // More sensitive on Mac
     
-    // Anti-spam controls (more aggressive for real-time)
+    // Anti-spam controls
     let lastAlertTime = 0;
-    const ALERT_COOLDOWN = 2000; // 2 seconds between alerts
+    const ALERT_COOLDOWN = 2000;
     let recentDetections = [];
-    const DETECTION_WINDOW = 2000; // 2 second window
+    const DETECTION_WINDOW = 2000;
     let activeAlert = null;
 
     // Streaming audio buffer
@@ -49,15 +55,15 @@ if (window.aiVoiceDetectorInjected) {
         console.log('📨 Message received:', request);
         
         if (request.action === 'startMonitoring') {
-            console.log('🖥️ Starting real-time streaming monitoring...');
+            console.log('🖥️ Starting Mac-compatible streaming monitoring...');
             
             startRealTimeStreaming()
                 .then(() => {
-                    console.log('✅ Real-time streaming started');
+                    console.log('✅ Mac-compatible streaming started');
                     sendResponse({ success: true, isMonitoring: true });
                 })
                 .catch(error => {
-                    console.error('❌ Real-time streaming failed:', error);
+                    console.error('❌ Mac-compatible streaming failed:', error);
                     sendResponse({ success: false, error: error.message });
                 });
             return true;
@@ -91,37 +97,57 @@ if (window.aiVoiceDetectorInjected) {
             throw new Error('Please wait a moment before requesting screen share again.');
         }
 
-        console.log('🖥️ Starting real-time audio streaming...');
+        console.log('🖥️ Starting Mac-compatible audio streaming...');
         globalState.screenShareRequested = true;
         globalState.screenShareInProgress = true;
         globalState.requestTimestamp = now;
         
         try {
-            showNotification('Real-Time Detection', 'Click "Entire Screen"\nSelect your screen\nCheck "Also share system audio"\nClick "Share"', 8000);
+            showNotification(
+                'Real-Time Detection', 
+                isMac ? 
+                    'On Mac:\n1. Click "Entire Screen"\n2. Select your screen\n3. Check "Share system audio"\n4. Click "Share"' :
+                    'Click "Entire Screen"\nSelect your screen\nCheck "Also share system audio"\nClick "Share"', 
+                isMac ? 10000 : 8000
+            );
             
-            mediaStream = await navigator.mediaDevices.getDisplayMedia({
+            // Mac-compatible media constraints
+            const constraints = {
                 video: true,
-                audio: {
+                audio: isMac ? {
+                    // More conservative constraints for Mac
                     echoCancellation: false,
                     noiseSuppression: false,
                     autoGainControl: false,
-                    sampleRate: 16000, // Optimized for real-time
+                    suppressLocalAudioPlayback: false
+                    // Don't specify sampleRate on Mac - let it use default
+                } : {
+                    echoCancellation: false,
+                    noiseSuppression: false,
+                    autoGainControl: false,
+                    sampleRate: 16000,
                     suppressLocalAudioPlayback: false
                 }
-            });
+            };
+            
+            console.log('🎤 Requesting display media with constraints:', constraints);
+            mediaStream = await navigator.mediaDevices.getDisplayMedia(constraints);
             
             const audioTracks = mediaStream.getAudioTracks();
             const videoTracks = mediaStream.getVideoTracks();
             
-            console.log('🎥 Real-time capture setup:', {
+            console.log('🎥 Mac-compatible capture setup:', {
                 audio: audioTracks.length,
                 video: videoTracks.length,
-                audioSettings: audioTracks[0]?.getSettings()
+                audioSettings: audioTracks[0]?.getSettings(),
+                platform: isMac ? 'Mac' : 'Windows/Linux'
             });
             
             if (audioTracks.length === 0) {
                 videoTracks.forEach(track => track.stop());
-                throw new Error('No system audio detected! You must check "Also share system audio".');
+                throw new Error(isMac ? 
+                    'No system audio detected! On Mac, make sure to check "Share system audio" in the permission dialog.' :
+                    'No system audio detected! You must check "Also share system audio".');
             }
             
             // Stop video tracks to save resources
@@ -130,8 +156,8 @@ if (window.aiVoiceDetectorInjected) {
                 track.stop();
             });
             
-            // Setup real-time audio processing
-            setupRealTimeAudioProcessing();
+            // Setup Mac-compatible audio processing
+            await setupMacCompatibleAudioProcessing();
             
             // Start streaming interval
             startStreamingInterval();
@@ -144,34 +170,125 @@ if (window.aiVoiceDetectorInjected) {
             
             isMonitoring = true;
             globalState.screenShareInProgress = false;
-            console.log('✅ Real-time streaming active');
+            console.log('✅ Mac-compatible streaming active');
             showNotification('Real-Time Detection Active', 'Continuous monitoring for AI voices...', 3000);
             
         } catch (error) {
             globalState.screenShareRequested = false;
             globalState.screenShareInProgress = false;
             
+            console.error('❌ Mac streaming error:', error);
+            
             if (error.name === 'NotAllowedError') {
-                throw new Error('Permission denied. Please allow screen sharing and check "Also share system audio".');
+                throw new Error(isMac ? 
+                    'Permission denied. On Mac, please allow screen sharing and check "Share system audio".' :
+                    'Permission denied. Please allow screen sharing and check "Also share system audio".');
             } else if (error.name === 'NotSupportedError') {
                 throw new Error('Screen sharing not supported in this browser.');
             } else if (error.name === 'AbortError') {
-                throw new Error('Screen sharing cancelled. Make sure to check "Also share system audio".');
+                throw new Error(isMac ?
+                    'Screen sharing cancelled. On Mac, make sure to check "Share system audio".' :
+                    'Screen sharing cancelled. Make sure to check "Also share system audio".');
             } else {
-                throw new Error(`Real-time streaming failed: ${error.message}`);
+                throw new Error(`Streaming failed: ${error.message}`);
             }
         }
     }
 
-    function setupRealTimeAudioProcessing() {
-        if (!audioContext) {
-            audioContext = new (window.AudioContext || window.webkitAudioContext)({
-                sampleRate: 16000
-            });
+    async function setupMacCompatibleAudioProcessing() {
+        // Create audio context with Mac-compatible settings
+        try {
+            if (isMac) {
+                // Let Mac use its preferred sample rate
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                console.log(`🎵 Mac audio context created with sample rate: ${audioContext.sampleRate}Hz`);
+            } else {
+                // Try 16kHz for Windows, fall back to default
+                try {
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)({
+                        sampleRate: 16000
+                    });
+                } catch (sampleRateError) {
+                    console.log('16kHz not supported, using default sample rate');
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                }
+            }
+        } catch (error) {
+            throw new Error(`Failed to create audio context: ${error.message}`);
         }
         
         const streamSource = audioContext.createMediaStreamSource(mediaStream);
-        scriptProcessor = audioContext.createScriptProcessor(1024, 1, 1); // Smaller buffer for real-time
+        
+        // Try modern AudioWorklet first, fall back to ScriptProcessor
+        if (audioContext.audioWorklet && !isSafari) {
+            try {
+                // Use AudioWorklet for better performance (not on Safari due to bugs)
+                console.log('🔧 Using AudioWorklet for audio processing');
+                await setupAudioWorklet(streamSource);
+            } catch (workletError) {
+                console.log('AudioWorklet failed, falling back to ScriptProcessor:', workletError);
+                setupScriptProcessor(streamSource);
+            }
+        } else {
+            console.log('🔧 Using ScriptProcessor for audio processing (Mac Safari compatible)');
+            setupScriptProcessor(streamSource);
+        }
+    }
+
+    async function setupAudioWorklet(streamSource) {
+        // AudioWorklet setup (for modern browsers, not Safari)
+        const workletCode = `
+            class AudioProcessor extends AudioWorkletProcessor {
+                constructor() {
+                    super();
+                    this.bufferSize = 1024;
+                    this.buffer = new Float32Array(this.bufferSize);
+                    this.bufferIndex = 0;
+                }
+                
+                process(inputs, outputs, parameters) {
+                    const input = inputs[0];
+                    if (input.length > 0) {
+                        const inputData = input[0];
+                        for (let i = 0; i < inputData.length; i++) {
+                            this.buffer[this.bufferIndex] = inputData[i];
+                            this.bufferIndex++;
+                            
+                            if (this.bufferIndex >= this.bufferSize) {
+                                this.port.postMessage({
+                                    type: 'audioData',
+                                    data: new Float32Array(this.buffer)
+                                });
+                                this.bufferIndex = 0;
+                            }
+                        }
+                    }
+                    return true;
+                }
+            }
+            registerProcessor('audio-processor', AudioProcessor);
+        `;
+        
+        const blob = new Blob([workletCode], { type: 'application/javascript' });
+        const workletUrl = URL.createObjectURL(blob);
+        
+        await audioContext.audioWorklet.addModule(workletUrl);
+        audioWorkletNode = new AudioWorkletNode(audioContext, 'audio-processor');
+        
+        audioWorkletNode.port.onmessage = (event) => {
+            if (event.data.type === 'audioData' && isMonitoring) {
+                processAudioData(event.data.data);
+            }
+        };
+        
+        streamSource.connect(audioWorkletNode);
+        URL.revokeObjectURL(workletUrl);
+    }
+
+    function setupScriptProcessor(streamSource) {
+        // ScriptProcessor fallback (Mac Safari compatible)
+        const bufferSize = isMac ? 2048 : 1024; // Larger buffer on Mac for stability
+        scriptProcessor = audioContext.createScriptProcessor(bufferSize, 1, 1);
         
         let lastVolumeLog = 0;
         
@@ -180,32 +297,34 @@ if (window.aiVoiceDetectorInjected) {
             
             const inputBuffer = event.inputBuffer;
             const inputData = inputBuffer.getChannelData(0);
-            const now = Date.now();
             
-            // Calculate volume
-            const volume = calculateRMS(inputData);
+            processAudioData(inputData);
             
             // Log volume periodically
+            const now = Date.now();
             if (now - lastVolumeLog > 10000) {
-                console.log(`🔊 Real-time audio volume: ${volume.toFixed(6)}`);
+                const volume = calculateRMS(inputData);
+                console.log(`🔊 ${isMac ? 'Mac' : 'PC'} audio volume: ${volume.toFixed(6)}`);
                 lastVolumeLog = now;
-            }
-            
-            // Add to streaming buffer
-            streamingBuffer.push(new Float32Array(inputData));
-            bufferDuration += inputBuffer.duration;
-            
-            // Keep buffer size manageable (max 2 seconds)
-            while (bufferDuration > 2.0) {
-                const removedChunk = streamingBuffer.shift();
-                if (removedChunk) {
-                    bufferDuration -= removedChunk.length / 16000;
-                }
             }
         };
         
         streamSource.connect(scriptProcessor);
         scriptProcessor.connect(audioContext.destination);
+    }
+
+    function processAudioData(inputData) {
+        // Add to streaming buffer
+        streamingBuffer.push(new Float32Array(inputData));
+        bufferDuration += inputData.length / audioContext.sampleRate;
+        
+        // Keep buffer size manageable (max 2 seconds)
+        while (bufferDuration > 2.0) {
+            const removedChunk = streamingBuffer.shift();
+            if (removedChunk) {
+                bufferDuration -= removedChunk.length / audioContext.sampleRate;
+            }
+        }
     }
 
     function startStreamingInterval() {
@@ -220,7 +339,7 @@ if (window.aiVoiceDetectorInjected) {
             
             // Skip if audio is too quiet
             if (currentVolume < MIN_VOLUME_THRESHOLD) {
-                console.log(`🔇 Audio too quiet, skipping stream (${currentVolume.toFixed(6)})`);
+                console.log(`🔇 ${isMac ? 'Mac' : 'PC'} audio too quiet, skipping stream (${currentVolume.toFixed(6)})`);
                 return;
             }
             
@@ -235,22 +354,19 @@ if (window.aiVoiceDetectorInjected) {
             }
             
             chunkCount++;
-            console.log(`🎵 Streaming chunk #${chunkCount} (${duration.toFixed(1)}s, volume: ${currentVolume.toFixed(6)})`);
+            console.log(`🎵 ${isMac ? 'Mac' : 'PC'} streaming chunk #${chunkCount} (${duration.toFixed(1)}s, volume: ${currentVolume.toFixed(6)})`);
             
             // Process this chunk
             processStreamingChunk(bufferCopy, chunkCount);
             
-            // Keep some overlap for context (keep last 0.5s)
+            // Keep some overlap for context
             const overlapDuration = 0.5;
-            const overlapSamples = Math.floor(overlapDuration * 16000);
-            
-            // Calculate how much to remove
             let samplesToRemove = 0;
             let removedDuration = 0;
             
             for (let i = 0; i < streamingBuffer.length; i++) {
                 const chunkSamples = streamingBuffer[i].length;
-                const chunkDuration = chunkSamples / 16000;
+                const chunkDuration = chunkSamples / audioContext.sampleRate;
                 
                 if (removedDuration + chunkDuration < duration - overlapDuration) {
                     samplesToRemove += chunkSamples;
@@ -266,7 +382,7 @@ if (window.aiVoiceDetectorInjected) {
                 const chunk = streamingBuffer.shift();
                 if (chunk) {
                     removedSamples += chunk.length;
-                    bufferDuration -= chunk.length / 16000;
+                    bufferDuration -= chunk.length / audioContext.sampleRate;
                 }
             }
             
@@ -287,9 +403,9 @@ if (window.aiVoiceDetectorInjected) {
                 offset += chunk.length;
             }
             
-            // Create optimized WAV blob
-            const wavBlob = createStreamingWAVBlob(combinedBuffer, 16000);
-            console.log(`📦 Streaming analysis #${chunkId}: ${wavBlob.size} bytes`);
+            // Create WAV blob with actual sample rate
+            const wavBlob = createMacCompatibleWAVBlob(combinedBuffer, audioContext.sampleRate);
+            console.log(`📦 ${isMac ? 'Mac' : 'PC'} streaming analysis #${chunkId}: ${wavBlob.size} bytes at ${audioContext.sampleRate}Hz`);
             
             const result = await sendToStreamingAPI(wavBlob);
             
@@ -297,11 +413,12 @@ if (window.aiVoiceDetectorInjected) {
                 const latency = Date.now() - startTime;
                 detectionLatency.push(latency);
                 
-                console.log(`🎯 Streaming result #${chunkId}:`, result, `(${latency}ms)`);
+                console.log(`🎯 ${isMac ? 'Mac' : 'PC'} streaming result #${chunkId}:`, result, `(${latency}ms)`);
                 
-                result.source = 'Real-Time Stream';
+                result.source = `Real-Time Stream (${isMac ? 'Mac' : 'PC'})`;
                 result.chunkId = chunkId;
                 result.latency = latency;
+                result.sampleRate = audioContext.sampleRate;
                 
                 handleStreamingResult(result);
             } else {
@@ -313,9 +430,47 @@ if (window.aiVoiceDetectorInjected) {
         }
     }
 
+    function createMacCompatibleWAVBlob(audioBuffer, sampleRate) {
+        // Convert to 16-bit PCM, compatible with any sample rate
+        const pcmBuffer = new Int16Array(audioBuffer.length);
+        for (let i = 0; i < audioBuffer.length; i++) {
+            pcmBuffer[i] = Math.max(-32768, Math.min(32767, audioBuffer[i] * 32767));
+        }
+        
+        const buffer = new ArrayBuffer(44 + pcmBuffer.length * 2);
+        const view = new DataView(buffer);
+        
+        const writeString = (offset, string) => {
+            for (let i = 0; i < string.length; i++) {
+                view.setUint8(offset + i, string.charCodeAt(i));
+            }
+        };
+        
+        writeString(0, 'RIFF');
+        view.setUint32(4, 36 + pcmBuffer.length * 2, true);
+        writeString(8, 'WAVE');
+        writeString(12, 'fmt ');
+        view.setUint32(16, 16, true);
+        view.setUint16(20, 1, true);
+        view.setUint16(22, 1, true);
+        view.setUint32(24, sampleRate, true); // Use actual sample rate
+        view.setUint32(28, sampleRate * 2, true);
+        view.setUint16(32, 2, true);
+        view.setUint16(34, 16, true);
+        writeString(36, 'data');
+        view.setUint32(40, pcmBuffer.length * 2, true);
+        
+        for (let i = 0; i < pcmBuffer.length; i++) {
+            view.setInt16(44 + i * 2, pcmBuffer[i], true);
+        }
+        
+        return new Blob([buffer], { type: 'audio/wav' });
+    }
+
+    // Rest of your existing functions with Mac-specific adjustments...
     async function sendToStreamingAPI(audioBlob) {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout for streaming
+        const timeoutId = setTimeout(() => controller.abort(), isMac ? 15000 : 10000); // Longer timeout on Mac
         
         try {
             const formData = new FormData();
@@ -366,14 +521,14 @@ if (window.aiVoiceDetectorInjected) {
     }
 
     async function pollStreamingResults(eventId, signal) {
-        const maxAttempts = 10; // Reduced for faster streaming
+        const maxAttempts = isMac ? 15 : 10; // More attempts on Mac
         
         for (let attempt = 0; attempt < maxAttempts; attempt++) {
             try {
                 const response = await fetch(`${HF_API_URL}/call/predict/${eventId}`, { signal });
                 
                 if (!response.ok) {
-                    await new Promise(resolve => setTimeout(resolve, 200));
+                    await new Promise(resolve => setTimeout(resolve, isMac ? 300 : 200));
                     continue;
                 }
                 
@@ -411,7 +566,7 @@ if (window.aiVoiceDetectorInjected) {
                 if (error.name === 'AbortError') throw error;
             }
             
-            await new Promise(resolve => setTimeout(resolve, 300));
+            await new Promise(resolve => setTimeout(resolve, isMac ? 400 : 300));
         }
         
         throw new Error('Streaming poll timeout');
@@ -431,10 +586,11 @@ if (window.aiVoiceDetectorInjected) {
                 prediction: isFake ? 'FAKE' : 'REAL',
                 confidence: Math.max(realProb, fakeProb),
                 probabilities: { real: realProb, fake: fakeProb },
-                is_suspicious: fakeProb > 0.6, // Streaming threshold
+                is_suspicious: fakeProb > 0.6,
                 raw_result: markdownResult,
                 timestamp: new Date().toISOString(),
-                url: window.location.href
+                url: window.location.href,
+                platform: isMac ? 'Mac' : 'Windows/Linux'
             };
             
         } catch (error) {
@@ -442,22 +598,22 @@ if (window.aiVoiceDetectorInjected) {
             return {
                 prediction: 'UNKNOWN',
                 confidence: 0.5,
-                error: error.message
+                error: error.message,
+                platform: isMac ? 'Mac' : 'Windows/Linux'
             };
         }
     }
 
     function handleStreamingResult(result) {
         totalDetections++;
-        console.log(`🎯 Processing streaming result #${totalDetections}:`, result);
+        console.log(`🎯 Processing ${isMac ? 'Mac' : 'PC'} streaming result #${totalDetections}:`, result);
         
-        // Less aggressive duplicate detection for streaming
+        // Same logic as before...
         const now = Date.now();
         const resultKey = `${result.prediction}-${Math.round(result.confidence * 20)}`;
         
         recentDetections = recentDetections.filter(det => now - det.time < DETECTION_WINDOW);
         
-        // Only block if very recent and identical
         const isDuplicate = recentDetections.some(det => 
             det.key === resultKey && (now - det.time < 1000)
         );
@@ -475,7 +631,7 @@ if (window.aiVoiceDetectorInjected) {
                 const detections = data.detections || [];
                 detections.push(result);
                 
-                if (detections.length > 150) { // Higher limit for streaming
+                if (detections.length > 150) {
                     detections.splice(0, detections.length - 150);
                 }
                 
@@ -487,7 +643,7 @@ if (window.aiVoiceDetectorInjected) {
         
         // Show real-time alert
         if (result.is_suspicious && shouldShowStreamingAlert()) {
-            showStreamingDeepfakeAlert(result);
+            showMacCompatibleDeepfakeAlert(result);
             lastAlertTime = now;
         }
         
@@ -509,8 +665,8 @@ if (window.aiVoiceDetectorInjected) {
         return now - lastAlertTime >= ALERT_COOLDOWN && !activeAlert;
     }
 
-    function showStreamingDeepfakeAlert(result) {
-        console.log('🚨 REAL-TIME DEEPFAKE DETECTED!');
+    function showMacCompatibleDeepfakeAlert(result) {
+        console.log(`🚨 REAL-TIME DEEPFAKE DETECTED ON ${isMac ? 'MAC' : 'PC'}!`);
         
         if (activeAlert) {
             activeAlert.remove();
@@ -537,8 +693,6 @@ if (window.aiVoiceDetectorInjected) {
             animation: streamingAlertSlide 0.3s ease-out;
         `;
         
-        const avgLatency = detectionLatency.slice(-5).reduce((a, b) => a + b, 0) / Math.min(detectionLatency.length, 5);
-        
         alert.innerHTML = `
             <div style="font-size: 17px; font-weight: 700; margin-bottom: 10px;">
                 ⚡ REAL-TIME AI DETECTED
@@ -546,7 +700,8 @@ if (window.aiVoiceDetectorInjected) {
             <div style="font-size: 13px; margin-bottom: 14px; opacity: 0.95; line-height: 1.5;">
                 Confidence: ${(result.confidence * 100).toFixed(1)}%<br>
                 Detection Time: ${result.latency || 'N/A'}ms<br>
-                Chunk: #${result.chunkId || 'N/A'}
+                Platform: ${result.platform || 'Unknown'}<br>
+                Sample Rate: ${result.sampleRate || 'N/A'}Hz
             </div>
             <button id="dismissStreamingAlert" 
                     style="background: rgba(255, 255, 255, 0.25); border: 1px solid rgba(255, 255, 255, 0.4); 
@@ -594,7 +749,7 @@ if (window.aiVoiceDetectorInjected) {
         
         document.body.appendChild(alert);
         
-        // Auto-dismiss after 8 seconds
+        // Auto-dismiss after longer time on Mac
         setTimeout(() => {
             if (alert.parentElement) {
                 alert.remove();
@@ -602,13 +757,13 @@ if (window.aiVoiceDetectorInjected) {
                     activeAlert = null;
                 }
             }
-        }, 8000);
+        }, isMac ? 10000 : 8000);
     }
 
     function stopRealTimeStreaming() {
         if (!isMonitoring) return;
         
-        console.log('⏹️ Stopping real-time streaming...');
+        console.log(`⏹️ Stopping ${isMac ? 'Mac' : 'PC'} real-time streaming...`);
         
         // Clear streaming interval
         if (streamingInterval) {
@@ -628,7 +783,14 @@ if (window.aiVoiceDetectorInjected) {
             activeAlert = null;
         }
         
-        // Stop audio processing
+        // Stop audio processing (both AudioWorklet and ScriptProcessor)
+        if (audioWorkletNode) {
+            try {
+                audioWorkletNode.disconnect();
+            } catch (e) {}
+            audioWorkletNode = null;
+        }
+        
         if (scriptProcessor) {
             try {
                 scriptProcessor.disconnect();
@@ -639,7 +801,7 @@ if (window.aiVoiceDetectorInjected) {
         // Stop media stream
         if (mediaStream) {
             mediaStream.getTracks().forEach(track => {
-                console.log('⏹️ Stopping streaming track:', track.label);
+                console.log(`⏹️ Stopping ${isMac ? 'Mac' : 'PC'} streaming track:`, track.label);
                 track.stop();
             });
             mediaStream = null;
@@ -658,14 +820,14 @@ if (window.aiVoiceDetectorInjected) {
             globalState.screenShareInProgress = false;
         }
         
-        console.log('✅ Real-time streaming stopped');
+        console.log(`✅ ${isMac ? 'Mac' : 'PC'} real-time streaming stopped`);
         console.log(`📊 Session stats: ${totalDetections} detections, avg latency: ${detectionLatency.length ? (detectionLatency.reduce((a, b) => a + b, 0) / detectionLatency.length).toFixed(0) : 'N/A'}ms`);
         
         // Reset counters
         totalDetections = 0;
         detectionLatency = [];
         
-        showNotification('Real-Time Detection Stopped', 'Streaming monitoring stopped');
+        showNotification(`${isMac ? 'Mac' : 'PC'} Real-Time Detection Stopped`, 'Streaming monitoring stopped');
     }
 
     function calculateRMS(audioData) {
@@ -674,43 +836,6 @@ if (window.aiVoiceDetectorInjected) {
             sum += audioData[i] * audioData[i];
         }
         return Math.sqrt(sum / audioData.length);
-    }
-
-    function createStreamingWAVBlob(audioBuffer, sampleRate) {
-        // Use 16-bit PCM for streaming - balance between quality and speed
-        const pcmBuffer = new Int16Array(audioBuffer.length);
-        for (let i = 0; i < audioBuffer.length; i++) {
-            pcmBuffer[i] = Math.max(-32768, Math.min(32767, audioBuffer[i] * 32767));
-        }
-        
-        const buffer = new ArrayBuffer(44 + pcmBuffer.length * 2);
-        const view = new DataView(buffer);
-        
-        const writeString = (offset, string) => {
-            for (let i = 0; i < string.length; i++) {
-                view.setUint8(offset + i, string.charCodeAt(i));
-            }
-        };
-        
-        writeString(0, 'RIFF');
-        view.setUint32(4, 36 + pcmBuffer.length * 2, true);
-        writeString(8, 'WAVE');
-        writeString(12, 'fmt ');
-        view.setUint32(16, 16, true);
-        view.setUint16(20, 1, true);
-        view.setUint16(22, 1, true);
-        view.setUint32(24, sampleRate, true);
-        view.setUint32(28, sampleRate * 2, true);
-        view.setUint16(32, 2, true);
-        view.setUint16(34, 16, true);
-        writeString(36, 'data');
-        view.setUint32(40, pcmBuffer.length * 2, true);
-        
-        for (let i = 0; i < pcmBuffer.length; i++) {
-            view.setInt16(44 + i * 2, pcmBuffer[i], true);
-        }
-        
-        return new Blob([buffer], { type: 'audio/wav' });
     }
 
     function showNotification(title, message, duration = 3000) {
@@ -728,14 +853,14 @@ if (window.aiVoiceDetectorInjected) {
             font-weight: 600;
             z-index: 9999;
             max-width: 300px;
-            border: 2px solid #ff0000;
+            border: 2px solid ${isMac ? '#007AFF' : '#ff0000'};
             backdrop-filter: blur(10px);
-            box-shadow: 0 8px 25px rgba(255, 0, 0, 0.3);
+            box-shadow: 0 8px 25px rgba(${isMac ? '0, 122, 255' : '255, 0, 0'}, 0.3);
             line-height: 1.5;
             white-space: pre-line;
         `;
         
-        notification.innerHTML = `<div style="font-weight: 700; margin-bottom: 4px;">⚡ ${title}</div><div style="opacity: 0.9;">${message}</div>`;
+        notification.innerHTML = `<div style="font-weight: 700; margin-bottom: 4px;">${isMac ? '🍎' : '⚡'} ${title}</div><div style="opacity: 0.9;">${message}</div>`;
         document.body.appendChild(notification);
         
         setTimeout(() => {
@@ -753,5 +878,5 @@ if (window.aiVoiceDetectorInjected) {
         }
     };
 
-    console.log('✅ Real-Time Streaming AI Voice Detector Ready!');
+    console.log(`✅ ${isMac ? 'Mac' : 'PC'}-Compatible Real-Time Streaming AI Voice Detector Ready!`);
 }
