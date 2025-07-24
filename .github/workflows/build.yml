@@ -49,8 +49,12 @@ jobs:
         if (Test-Path "create_icon.py") {
           python create_icon.py
         } else {
-          Write-Host "Creating basic icon with Python..."
-          python -c "from PIL import Image; img=Image.new('RGB',(64,64),'#FFD700'); img.save('lion_icon.ico')"
+          if (-not (Test-Path "lion_icon.ico")) {
+            Write-Host "Creating basic icon with Python..."
+            python -c "from PIL import Image; img=Image.new('RGB',(64,64),'#FFD700'); img.save('lion_icon.ico')"
+          } else {
+            Write-Host "Using existing lion_icon.ico"
+          }
         }
       shell: pwsh
       
@@ -58,7 +62,11 @@ jobs:
       run: |
         cd desktop-app
         if (Test-Path "deepfake_monitor.py") {
-          pyinstaller --onefile --windowed --name "Lion-AI-Detection" --icon lion_icon.ico --add-data "lion_icon.png;." --add-data "lion_icon.ico;." deepfake_monitor.py
+          if (Test-Path "lion_icon.ico") {
+            pyinstaller --onefile --windowed --name "Lion-AI-Detection" --icon lion_icon.ico deepfake_monitor.py
+          } else {
+            pyinstaller --onefile --windowed --name "Lion-AI-Detection" deepfake_monitor.py
+          }
         } else {
           Write-Host "❌ Cannot build: deepfake_monitor.py not found"
           exit 1
@@ -106,15 +114,23 @@ jobs:
         if [ -f "create_icon.py" ]; then
           python create_icon.py
         else
-          echo "Creating basic icon with Python..."
-          python -c "from PIL import Image; img=Image.new('RGB',(64,64),'#FFD700'); img.save('lion_icon.png')"
+          if [ ! -f "lion_icon.ico" ]; then
+            echo "Creating basic icon with Python..."
+            python -c "from PIL import Image; img=Image.new('RGB',(64,64),'#FFD700'); img.save('lion_icon.ico')"
+          else
+            echo "Using existing lion_icon.ico"
+          fi
         fi
       
     - name: Build macOS executable
       run: |
         cd desktop-app
         if [ -f "deepfake_monitor.py" ]; then
-          pyinstaller --onefile --windowed --name "Lion-AI-Detection" --icon lion_icon.png --add-data "lion_icon.png:." --add-data "lion_icon.ico:." deepfake_monitor.py
+          if [ -f "lion_icon.ico" ]; then
+            pyinstaller --onefile --windowed --name "Lion-AI-Detection" --icon lion_icon.ico deepfake_monitor.py
+          else
+            pyinstaller --onefile --windowed --name "Lion-AI-Detection" deepfake_monitor.py
+          fi
         else
           echo "❌ Cannot build: deepfake_monitor.py not found"
           exit 1
@@ -162,15 +178,23 @@ jobs:
         if [ -f "create_icon.py" ]; then
           python create_icon.py
         else
-          echo "Creating basic icon with Python..."
-          python -c "from PIL import Image; img=Image.new('RGB',(64,64),'#FFD700'); img.save('lion_icon.png')"
+          if [ ! -f "lion_icon.ico" ]; then
+            echo "Creating basic icon with Python..."
+            python -c "from PIL import Image; img=Image.new('RGB',(64,64),'#FFD700'); img.save('lion_icon.ico')"
+          else
+            echo "Using existing lion_icon.ico"
+          fi
         fi
       
     - name: Build Linux executable
       run: |
         cd desktop-app
         if [ -f "deepfake_monitor.py" ]; then
-          pyinstaller --onefile --name "Lion-AI-Detection" --icon lion_icon.png --add-data "lion_icon.png:." --add-data "lion_icon.ico:." deepfake_monitor.py
+          if [ -f "lion_icon.ico" ]; then
+            pyinstaller --onefile --name "Lion-AI-Detection" --icon lion_icon.ico deepfake_monitor.py
+          else
+            pyinstaller --onefile --name "Lion-AI-Detection" deepfake_monitor.py
+          fi
         else
           echo "❌ Cannot build: deepfake_monitor.py not found"
           exit 1
