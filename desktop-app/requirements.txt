@@ -1,15 +1,17 @@
-# Core dependencies from your script
-numpy>=1.24.0
+# Core dependencies from your deepfake_monitor.py script
+numpy>=1.21.0
 pyaudio>=0.2.11
-Pillow>=10.0.0
+Pillow>=9.0.0  # For PIL import
 pystray>=0.19.4
-requests>=2.31.0
+requests>=2.25.0
 
-# Optional dependencies (your script tries to install these)
+# Auto-installed packages from your script
 plyer>=2.1.0
 
-# Build dependencies
+# Build tool
 pyinstaller>=5.13.0
 
-# Python version compatibility
-# Requires Python 3.8+
+# Note: These are built-in Python modules (no pip install needed):
+# - sys, os, time, threading, queue, json, wave, io, pathlib
+# - datetime, tkinter, logging, traceback, tempfile
+# - winsound (Windows built-in)

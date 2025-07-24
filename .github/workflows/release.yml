@@ -25,22 +25,18 @@ jobs:
       with:
         python-version: '3.9'
     
-    - name: Install system dependencies
-      run: |
-        # Install Windows audio dependencies
-        choco install portaudio -y
-      continue-on-error: true
-    
     - name: Install Python dependencies
       run: |
         python -m pip install --upgrade pip
         cd desktop-app
+        # Install PyAudio with pre-compiled wheel (should work on Windows)
+        pip install --only-binary=all pyaudio
         pip install -r requirements.txt
     
     - name: Build executable
       run: |
         cd desktop-app
-        pyinstaller --onefile --windowed --icon=lion_icon.ico --name="Lion-AI-Detection" deepfake_monitor.py
+        pyinstaller --onefile --windowed --name="Lion-AI-Detection" deepfake_monitor.py
         
         # Copy to root for easy access
         copy dist\Lion-AI-Detection.exe ..\Lion-AI-Detection.exe
