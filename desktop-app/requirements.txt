@@ -1,0 +1,15 @@
+# Core dependencies from your script
+numpy>=1.24.0
+pyaudio>=0.2.11
+Pillow>=10.0.0
+pystray>=0.19.4
+requests>=2.31.0
+
+# Optional dependencies (your script tries to install these)
+plyer>=2.1.0
+
+# Build dependencies
+pyinstaller>=5.13.0
+
+# Python version compatibility
+# Requires Python 3.8+

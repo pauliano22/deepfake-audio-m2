@@ -204,6 +204,92 @@ class StreamingDeepfakeMonitor:
         console.setFormatter(formatter)
         logging.getLogger('').addHandler(console)
     
+    def show_first_time_setup(self):
+        """Show first-time setup GUI dialog"""
+        try:
+            # Check if this is first run
+            setup_file = Path("setup_complete.txt")
+            if setup_file.exists():
+                return  # Setup already shown
+            
+            # Create hidden root window
+            root = tk.Tk()
+            root.withdraw()
+            
+            # Show welcome dialog
+            setup_message = """🦁 Welcome to Lion - AI Detection!
+
+IMPORTANT SETUP STEPS:
+
+1️⃣ Enable System Audio Capture:
+   • Right-click speaker icon in taskbar
+   • Select 'Open Sound settings'
+   • Click 'Sound Control Panel'
+   • Go to 'Recording' tab
+   • Enable 'Stereo Mix' (if available)
+
+2️⃣ Start Protection:
+   • Right-click the Lion icon in system tray
+   • Select 'Start Real-Time Monitoring'
+
+3️⃣ Optional Settings:
+   • Enable 'Start with Windows' for automatic protection
+   • Adjust alert sensitivity in Settings
+
+Click OK to continue to the system tray."""
+            
+            messagebox.showinfo("🦁 Lion - First Time Setup", setup_message)
+            
+            # Mark setup as complete
+            setup_file.write_text("setup_complete")
+            
+            root.destroy()
+            
+        except Exception as e:
+            print(f"Setup dialog error: {e}")
+            # Fallback to console
+            print("\n" + "="*60)
+            print("🦁 Welcome to Lion - AI Detection Monitor!")
+            print("="*60)
+            print("📋 First-time setup instructions:")
+            print("   1. Enable 'Stereo Mix' in Windows Sound settings")
+            print("   2. Right-click the system tray icon to start monitoring")
+            print("   3. Configure alert settings from the context menu")
+            print("="*60)
+
+    def show_system_audio_help(self, icon=None, item=None):
+        """Show system audio setup help"""
+        try:
+            root = tk.Tk()
+            root.withdraw()
+            
+            help_message = """🎤 System Audio Setup Help
+
+To detect AI voices in system audio:
+
+OPTION 1 - Enable Stereo Mix:
+1. Right-click speaker icon → Open Sound settings
+2. Click 'Sound Control Panel' 
+3. Go to 'Recording' tab
+4. Right-click empty space → Show Disabled Devices
+5. Enable 'Stereo Mix' → Set as Default
+
+OPTION 2 - Use Virtual Audio Cable:
+1. Download VB-Cable or similar virtual audio driver
+2. Set VB-Cable as default audio output
+3. Lion will capture from VB-Cable input
+
+OPTION 3 - Microphone Only:
+Lion will monitor your microphone for AI voices in calls.
+
+Need help? Visit our support page or contact us."""
+            
+            messagebox.showinfo("🎤 Audio Setup Help", help_message)
+            root.destroy()
+            
+        except Exception as e:
+            print(f"Help dialog error: {e}")
+    
     def create_wav_blob(self, audio_data, sample_rate):
         """Create WAV file from audio data"""
         # Convert to 16-bit PCM
@@ -735,6 +821,7 @@ class StreamingDeepfakeMonitor:
             MenuItem("⏹️ Stop Monitoring", self.stop_monitoring, 
                     enabled=lambda item: self.is_monitoring),
             Menu.SEPARATOR,
+            MenuItem("❓ Audio Setup Help", self.show_system_audio_help),
             MenuItem("🔄 Start with Windows", self.toggle_auto_start,
                     checked=lambda item: self.auto_start_enabled),
             Menu.SEPARATOR,
@@ -895,18 +982,6 @@ Current Settings:
         
         os._exit(0)
     
-    def show_first_time_setup(self):
-        """Show first-time setup instructions"""
-        print("\n" + "="*60)
-        print("🦁 Welcome to Lion - AI Detection Monitor!")
-        print("="*60)
-        print("📋 First-time setup instructions:")
-        print("   1. Enable 'Stereo Mix' in Windows Sound settings for system audio")
-        print("   2. Right-click the system tray icon to start monitoring")
-        print("   3. Configure alert settings from the context menu")
-        print("   4. Check 'Start with Windows' for automatic protection")
-        print("="*60)
-    
     def run(self):
         """Run the application"""
         print("🚀 Starting Lion - AI Detection (Desktop Monitor)")
@@ -920,6 +995,23 @@ Current Settings:
         
         # Create and run system tray
         self.create_system_tray()
+        
+        # Show startup notification
+        if self.tray_icon:
+            try:
+                def delayed_notification():
+                    time.sleep(2)  # Wait for tray to be ready
+                    try:
+                        self.tray_icon.notify(
+                            "🦁 Lion AI Detection Started", 
+                            "Right-click the tray icon to begin monitoring"
+                        )
+                    except Exception as e:
+                        print(f"Startup notification failed: {e}")
+                
+                threading.Thread(target=delayed_notification, daemon=True).start()
+            except:
+                pass
         
         try:
             self.tray_icon.run()
@@ -952,8 +1044,10 @@ Current Settings:
                     print(f"Monitoring: {self.is_monitoring}")
                     print(f"Detections: {len(self.detection_history)}")
                     print(f"Total processed: {self.total_detections}")
+                elif cmd == "help":
+                    self.show_system_audio_help()
                 else:
-                    print("Commands: start, stop, test, stats, settings, status, quit")
+                    print("Commands: start, stop, test, stats, settings, help, status, quit")
                     
             except KeyboardInterrupt:
                 break
