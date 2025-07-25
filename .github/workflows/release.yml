@@ -125,6 +125,7 @@ jobs:
       with:
         name: ${{ matrix.asset_name }}
         path: ${{ matrix.executable }}
+        if-no-files-found: error
 
   create-release:
     needs: build-and-release
@@ -138,6 +139,42 @@ jobs:
       uses: actions/download-artifact@v4
       with:
         path: ./artifacts
+    
+    - name: List artifacts (debug)
+      run: |
+        echo "Listing all downloaded artifacts:"
+        ls -la ./artifacts/
+        echo "Detailed structure:"
+        find ./artifacts/ -type f -ls
+    
+    - name: Prepare release files
+      run: |
+        mkdir -p ./release-files
+        
+        # Copy and rename files for clarity
+        if [ -f "./artifacts/Lion-AI-Detection-Windows/Lion-AI-Detection.exe" ]; then
+          cp "./artifacts/Lion-AI-Detection-Windows/Lion-AI-Detection.exe" "./release-files/Lion-AI-Detection-Windows.exe"
+          echo "✅ Windows executable prepared"
+        else
+          echo "❌ Windows executable not found"
+        fi
+        
+        if [ -f "./artifacts/Lion-AI-Detection-macOS/Lion-AI-Detection" ]; then
+          cp "./artifacts/Lion-AI-Detection-macOS/Lion-AI-Detection" "./release-files/Lion-AI-Detection-macOS"
+          echo "✅ macOS executable prepared"
+        else
+          echo "❌ macOS executable not found"
+        fi
+        
+        if [ -f "./artifacts/Lion-AI-Detection-Linux/Lion-AI-Detection" ]; then
+          cp "./artifacts/Lion-AI-Detection-Linux/Lion-AI-Detection" "./release-files/Lion-AI-Detection-Linux"
+          echo "✅ Linux executable prepared"
+        else
+          echo "❌ Linux executable not found"
+        fi
+        
+        echo "Final release files:"
+        ls -la ./release-files/
     
     - name: Get version
       id: get_version
@@ -216,6 +253,6 @@ jobs:
         draft: false
         prerelease: false
         files: |
-          artifacts/Lion-AI-Detection-Windows/Lion-AI-Detection.exe
-          artifacts/Lion-AI-Detection-macOS/Lion-AI-Detection
-          artifacts/Lion-AI-Detection-Linux/Lion-AI-Detection
+          ./release-files/Lion-AI-Detection-Windows.exe
+          ./release-files/Lion-AI-Detection-macOS
+          ./release-files/Lion-AI-Detection-Linux
