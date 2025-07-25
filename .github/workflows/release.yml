@@ -147,7 +147,7 @@ jobs:
         else
           echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
         fi
-    
+
     - name: Create Release
       id: create_release
       uses: softprops/action-gh-release@v1
