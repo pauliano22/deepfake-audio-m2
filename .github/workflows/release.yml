@@ -12,6 +12,11 @@ on:
         required: true
         default: 'v1.0.0'
 
+# Add permissions for creating releases
+permissions:
+  contents: write
+  packages: write
+
 jobs:
   build-and-release:
     runs-on: windows-latest
@@ -36,11 +41,37 @@ jobs:
     - name: Build executable
       run: |
         cd desktop-app
-        pyinstaller --onefile --windowed --name="Lion-AI-Detection" deepfake_monitor.py
+        
+        # Check if script exists
+        if (Test-Path "deepfake_monitor.py") {
+          Write-Host "✅ deepfake_monitor.py found"
+        } else {
+          Write-Host "❌ deepfake_monitor.py missing"
+          exit 1
+        }
+        
+        # Create basic icon if none exists
+        if (-not (Test-Path "lion_icon.ico") -and -not (Test-Path "lion_icon.png")) {
+          Write-Host "Creating basic icon..."
+          python -c "from PIL import Image; img=Image.new('RGB',(64,64),'#FFD700'); img.save('lion_icon.ico'); img.save('lion_icon.png')"
+        }
+        
+        # Build with PyInstaller (use ico for Windows)
+        if (Test-Path "lion_icon.ico") {
+          pyinstaller --onefile --windowed --icon="lion_icon.ico" --name="Lion-AI-Detection" deepfake_monitor.py
+        } else {
+          pyinstaller --onefile --windowed --name="Lion-AI-Detection" deepfake_monitor.py
+        }
         
         # Copy to root for easy access
-        copy dist\Lion-AI-Detection.exe ..\Lion-AI-Detection.exe
-      shell: cmd
+        if (Test-Path "dist\Lion-AI-Detection.exe") {
+          Copy-Item "dist\Lion-AI-Detection.exe" "..\Lion-AI-Detection.exe"
+          Write-Host "✅ Executable copied to root"
+        } else {
+          Write-Host "❌ Build failed - executable not found"
+          exit 1
+        }
+      shell: pwsh
     
     - name: Test executable
       run: |
@@ -66,12 +97,12 @@ jobs:
     
     - name: Create Release
       id: create_release
-      uses: actions/create-release@v1
+      uses: softprops/action-gh-release@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         tag_name: ${{ steps.get_version.outputs.VERSION }}
-        release_name: Lion AI Detection ${{ steps.get_version.outputs.VERSION }}
+        name: Lion AI Detection ${{ steps.get_version.outputs.VERSION }}
         body: |
           # 🦁 Lion AI Detection - Desktop Guardian ${{ steps.get_version.outputs.VERSION }}
           
@@ -120,13 +151,5 @@ jobs:
           **Questions?** Check the in-app help or create an issue on GitHub.
         draft: false
         prerelease: false
-    
-    - name: Upload Desktop App
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./Lion-AI-Detection.exe
-        asset_name: Lion-AI-Detection.exe
-        asset_content_type: application/octet-stream
+        files: |
+          Lion-AI-Detection.exe
