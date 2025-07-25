@@ -25,64 +25,15 @@ jobs:
         include:
           - os: windows-latest
             executable: Lion-AI-Detection.exe
-            asset_name: Lion-AI-Detection-Windows.exe
-            build_command: |
-              cd desktop-app
-              if (Test-Path "deepfake_monitor.py") {
-                Write-Host "✅ deepfake_monitor.py found"
-              } else {
-                Write-Host "❌ deepfake_monitor.py missing"
-                exit 1
-              }
-              if (-not (Test-Path "lion_icon.ico")) {
-                Write-Host "Creating basic icon..."
-                python -c "from PIL import Image; img=Image.new('RGB',(64,64),'#FFD700'); img.save('lion_icon.ico')"
-              }
-              if (Test-Path "lion_icon.ico") {
-                pyinstaller --onefile --windowed --icon="lion_icon.ico" --name="Lion-AI-Detection" deepfake_monitor.py
-              } else {
-                pyinstaller --onefile --windowed --name="Lion-AI-Detection" deepfake_monitor.py
-              }
-              Copy-Item "dist\Lion-AI-Detection.exe" "..\Lion-AI-Detection.exe"
-            shell: pwsh
+            asset_name: Lion-AI-Detection-Windows
             
           - os: macos-latest
             executable: Lion-AI-Detection
             asset_name: Lion-AI-Detection-macOS
-            build_command: |
-              cd desktop-app
-              if [ -f "deepfake_monitor.py" ]; then
-                echo "✅ deepfake_monitor.py found"
-              else
-                echo "❌ deepfake_monitor.py missing"
-                exit 1
-              fi
-              if [ ! -f "lion_icon.ico" ]; then
-                echo "Creating basic icon..."
-                python -c "from PIL import Image; img=Image.new('RGB',(64,64),'#FFD700'); img.save('lion_icon.ico')"
-              fi
-              pyinstaller --onefile --windowed --name="Lion-AI-Detection" deepfake_monitor.py
-              cp dist/Lion-AI-Detection ../Lion-AI-Detection
-            shell: bash
             
           - os: ubuntu-latest
             executable: Lion-AI-Detection
             asset_name: Lion-AI-Detection-Linux
-            build_command: |
-              cd desktop-app
-              if [ -f "deepfake_monitor.py" ]; then
-                echo "✅ deepfake_monitor.py found"
-              else
-                echo "❌ deepfake_monitor.py missing"
-                exit 1
-              fi
-              if [ ! -f "lion_icon.ico" ]; then
-                echo "Creating basic icon..."
-                python -c "from PIL import Image; img=Image.new('RGB',(64,64),'#FFD700'); img.save('lion_icon.ico')"
-              fi
-              pyinstaller --onefile --name="Lion-AI-Detection" deepfake_monitor.py
-              cp dist/Lion-AI-Detection ../Lion-AI-Detection
-            shell: bash
     
     steps:
     - name: Checkout code
@@ -111,9 +62,63 @@ jobs:
         pip install --only-binary=all pyaudio || pip install pyaudio
         pip install -r requirements.txt
     
-    - name: Build executable
-      run: ${{ matrix.build_command }}
-      shell: ${{ matrix.shell }}
+    - name: Build executable (Windows)
+      if: matrix.os == 'windows-latest'
+      run: |
+        cd desktop-app
+        if (Test-Path "deepfake_monitor.py") {
+          Write-Host "✅ deepfake_monitor.py found"
+        } else {
+          Write-Host "❌ deepfake_monitor.py missing"
+          exit 1
+        }
+        if (-not (Test-Path "lion_icon.ico")) {
+          Write-Host "Creating basic icon..."
+          python -c "from PIL import Image; img=Image.new('RGB',(64,64),'#FFD700'); img.save('lion_icon.ico')"
+        }
+        if (Test-Path "lion_icon.ico") {
+          pyinstaller --onefile --windowed --icon="lion_icon.ico" --name="Lion-AI-Detection" deepfake_monitor.py
+        } else {
+          pyinstaller --onefile --windowed --name="Lion-AI-Detection" deepfake_monitor.py
+        }
+        Copy-Item "dist\Lion-AI-Detection.exe" "..\Lion-AI-Detection.exe"
+      shell: pwsh
+
+    - name: Build executable (macOS)
+      if: matrix.os == 'macos-latest'
+      run: |
+        cd desktop-app
+        if [ -f "deepfake_monitor.py" ]; then
+          echo "✅ deepfake_monitor.py found"
+        else
+          echo "❌ deepfake_monitor.py missing"
+          exit 1
+        fi
+        if [ ! -f "lion_icon.ico" ]; then
+          echo "Creating basic icon..."
+          python -c "from PIL import Image; img=Image.new('RGB',(64,64),'#FFD700'); img.save('lion_icon.ico')"
+        fi
+        pyinstaller --onefile --windowed --name="Lion-AI-Detection" deepfake_monitor.py
+        cp dist/Lion-AI-Detection ../Lion-AI-Detection
+      shell: bash
+
+    - name: Build executable (Linux)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        cd desktop-app
+        if [ -f "deepfake_monitor.py" ]; then
+          echo "✅ deepfake_monitor.py found"
+        else
+          echo "❌ deepfake_monitor.py missing"
+          exit 1
+        fi
+        if [ ! -f "lion_icon.ico" ]; then
+          echo "Creating basic icon..."
+          python -c "from PIL import Image; img=Image.new('RGB',(64,64),'#FFD700'); img.save('lion_icon.ico')"
+        fi
+        pyinstaller --onefile --name="Lion-AI-Detection" deepfake_monitor.py
+        cp dist/Lion-AI-Detection ../Lion-AI-Detection
+      shell: bash
     
     - name: Upload artifact
       uses: actions/upload-artifact@v4
