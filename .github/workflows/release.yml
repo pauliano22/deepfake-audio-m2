@@ -19,7 +19,70 @@ permissions:
 
 jobs:
   build-and-release:
-    runs-on: windows-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            executable: Lion-AI-Detection.exe
+            asset_name: Lion-AI-Detection-Windows.exe
+            build_command: |
+              cd desktop-app
+              if (Test-Path "deepfake_monitor.py") {
+                Write-Host "✅ deepfake_monitor.py found"
+              } else {
+                Write-Host "❌ deepfake_monitor.py missing"
+                exit 1
+              }
+              if (-not (Test-Path "lion_icon.ico")) {
+                Write-Host "Creating basic icon..."
+                python -c "from PIL import Image; img=Image.new('RGB',(64,64),'#FFD700'); img.save('lion_icon.ico')"
+              }
+              if (Test-Path "lion_icon.ico") {
+                pyinstaller --onefile --windowed --icon="lion_icon.ico" --name="Lion-AI-Detection" deepfake_monitor.py
+              } else {
+                pyinstaller --onefile --windowed --name="Lion-AI-Detection" deepfake_monitor.py
+              }
+              Copy-Item "dist\Lion-AI-Detection.exe" "..\Lion-AI-Detection.exe"
+            shell: pwsh
+            
+          - os: macos-latest
+            executable: Lion-AI-Detection
+            asset_name: Lion-AI-Detection-macOS
+            build_command: |
+              cd desktop-app
+              if [ -f "deepfake_monitor.py" ]; then
+                echo "✅ deepfake_monitor.py found"
+              else
+                echo "❌ deepfake_monitor.py missing"
+                exit 1
+              fi
+              if [ ! -f "lion_icon.ico" ]; then
+                echo "Creating basic icon..."
+                python -c "from PIL import Image; img=Image.new('RGB',(64,64),'#FFD700'); img.save('lion_icon.ico')"
+              fi
+              pyinstaller --onefile --windowed --name="Lion-AI-Detection" deepfake_monitor.py
+              cp dist/Lion-AI-Detection ../Lion-AI-Detection
+            shell: bash
+            
+          - os: ubuntu-latest
+            executable: Lion-AI-Detection
+            asset_name: Lion-AI-Detection-Linux
+            build_command: |
+              cd desktop-app
+              if [ -f "deepfake_monitor.py" ]; then
+                echo "✅ deepfake_monitor.py found"
+              else
+                echo "❌ deepfake_monitor.py missing"
+                exit 1
+              fi
+              if [ ! -f "lion_icon.ico" ]; then
+                echo "Creating basic icon..."
+                python -c "from PIL import Image; img=Image.new('RGB',(64,64),'#FFD700'); img.save('lion_icon.ico')"
+              fi
+              pyinstaller --onefile --name="Lion-AI-Detection" deepfake_monitor.py
+              cp dist/Lion-AI-Detection ../Lion-AI-Detection
+            shell: bash
     
     steps:
     - name: Checkout code
@@ -30,60 +93,46 @@ jobs:
       with:
         python-version: '3.9'
     
+    - name: Install system dependencies (macOS)
+      if: matrix.os == 'macos-latest'
+      run: |
+        brew install portaudio
+    
+    - name: Install system dependencies (Ubuntu)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y portaudio19-dev python3-tk
+    
     - name: Install Python dependencies
       run: |
         python -m pip install --upgrade pip
         cd desktop-app
-        # Install PyAudio with pre-compiled wheel (should work on Windows)
-        pip install --only-binary=all pyaudio
+        pip install --only-binary=all pyaudio || pip install pyaudio
         pip install -r requirements.txt
     
     - name: Build executable
-      run: |
-        cd desktop-app
-        
-        # Check if script exists
-        if (Test-Path "deepfake_monitor.py") {
-          Write-Host "✅ deepfake_monitor.py found"
-        } else {
-          Write-Host "❌ deepfake_monitor.py missing"
-          exit 1
-        }
-        
-        # Create basic icon if none exists
-        if (-not (Test-Path "lion_icon.ico") -and -not (Test-Path "lion_icon.png")) {
-          Write-Host "Creating basic icon..."
-          python -c "from PIL import Image; img=Image.new('RGB',(64,64),'#FFD700'); img.save('lion_icon.ico'); img.save('lion_icon.png')"
-        }
-        
-        # Build with PyInstaller (use ico for Windows)
-        if (Test-Path "lion_icon.ico") {
-          pyinstaller --onefile --windowed --icon="lion_icon.ico" --name="Lion-AI-Detection" deepfake_monitor.py
-        } else {
-          pyinstaller --onefile --windowed --name="Lion-AI-Detection" deepfake_monitor.py
-        }
-        
-        # Copy to root for easy access
-        if (Test-Path "dist\Lion-AI-Detection.exe") {
-          Copy-Item "dist\Lion-AI-Detection.exe" "..\Lion-AI-Detection.exe"
-          Write-Host "✅ Executable copied to root"
-        } else {
-          Write-Host "❌ Build failed - executable not found"
-          exit 1
-        }
-      shell: pwsh
+      run: ${{ matrix.build_command }}
+      shell: ${{ matrix.shell }}
     
-    - name: Test executable
-      run: |
-        # Quick test that the exe was created and can start
-        if (Test-Path "Lion-AI-Detection.exe") {
-          Write-Host "✅ Executable created successfully"
-          Get-Item "Lion-AI-Detection.exe" | Select-Object Name, Length, LastWriteTime
-        } else {
-          Write-Host "❌ Executable not found"
-          exit 1
-        }
-      shell: pwsh
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.asset_name }}
+        path: ${{ matrix.executable }}
+
+  create-release:
+    needs: build-and-release
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: ./artifacts
     
     - name: Get version
       id: get_version
@@ -93,7 +142,6 @@ jobs:
         else
           echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
         fi
-      shell: bash
     
     - name: Create Release
       id: create_release
@@ -108,27 +156,38 @@ jobs:
           
           **Real-time AI voice detection for your computer**
           
+          ## 📥 Download for Your Platform
+          
+          **Windows:** `Lion-AI-Detection-Windows.exe`
+          **macOS:** `Lion-AI-Detection-macOS` 
+          **Linux:** `Lion-AI-Detection-Linux`
+          
           ## 📥 Quick Start
-          1. **Download** `Lion-AI-Detection.exe` below
-          2. **Run** the executable (Windows may show security warning - click "Keep")
-          3. **Follow** the first-time setup dialog for audio configuration
-          4. **Right-click** system tray icon to start monitoring
+          1. **Download** the file for your operating system below
+          2. **Windows:** Run the .exe (may show security warning - click "Keep")
+          3. **macOS:** You may need to right-click → Open to bypass Gatekeeper
+          4. **Linux:** Make executable with `chmod +x Lion-AI-Detection-Linux`
+          5. **Follow** the first-time setup dialog for audio configuration
+          6. **Right-click** system tray icon to start monitoring
           
           ## 🎤 Audio Setup (Important!)
-          - **Enable "Stereo Mix"** in Windows Sound settings for system audio
-          - **Or use microphone** for call/meeting detection
-          - **See in-app help** menu for detailed setup instructions
+          - **Windows:** Enable "Stereo Mix" in Sound settings for system audio
+          - **macOS:** Grant microphone permissions when prompted
+          - **Linux:** Ensure PulseAudio/ALSA is properly configured
+          - **All platforms:** See in-app help menu for detailed instructions
           
           ## ⚡ Features This Release
           - Real-time deepfake detection (under 2 seconds)
-          - System tray background operation
+          - Cross-platform system tray operation
           - Smart alert system (reduces false alarms)
           - Audio setup help and first-time wizard
-          - Auto-start with Windows option
+          - Auto-start option (Windows/Linux)
           - Detection history and logging
           
           ## 🔧 System Requirements
-          - Windows 10/11 (64-bit)
+          - **Windows:** 10/11 (64-bit)
+          - **macOS:** 10.14+ (Mojave or newer)
+          - **Linux:** Ubuntu 18.04+ or equivalent
           - Microphone or system audio capability
           - Internet connection for AI analysis
           - ~50MB disk space
@@ -140,10 +199,10 @@ jobs:
           - **Audio never saved** to disk
           
           ## 🐛 Troubleshooting
-          - **Chrome download warning**: Normal for new apps - click "Keep"
-          - **No system audio**: Enable "Stereo Mix" in Windows Sound settings
-          - **High CPU usage**: Adjust detection sensitivity in settings
-          - **False alarms**: Lower sensitivity or enable smart filtering
+          - **Download warnings:** Normal for unsigned apps - approve in security settings
+          - **macOS:** Right-click → Open to bypass Gatekeeper warnings
+          - **Linux:** Ensure executable permissions with `chmod +x`
+          - **No system audio:** Configure audio capture in OS settings
           
           ---
           **🆓 Free during beta | $2.99/month after public launch**
@@ -152,4 +211,6 @@ jobs:
         draft: false
         prerelease: false
         files: |
-          Lion-AI-Detection.exe
+          artifacts/Lion-AI-Detection-Windows/Lion-AI-Detection.exe
+          artifacts/Lion-AI-Detection-macOS/Lion-AI-Detection
+          artifacts/Lion-AI-Detection-Linux/Lion-AI-Detection
