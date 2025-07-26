@@ -1,3 +1,5 @@
+// popup.js - User-friendly error messages
+
 // Hide loading screen after animations complete
 setTimeout(() => {
     const loadingScreen = document.getElementById('loadingScreen');
@@ -51,11 +53,24 @@ async function checkAPIStatus() {
         
         clearTimeout(timeoutId);
         statusEl.className = 'status connected';
-        statusEl.innerHTML = '✅ Ready';
+        statusEl.innerHTML = `
+            <svg class="icon" viewBox="0 0 24 24" style="width: 12px; height: 12px; margin-right: 4px;">
+                <path d="m9 12 2 2 4-4"/>
+                <circle cx="12" cy="12" r="9"/>
+            </svg>
+            Ready
+        `;
         
     } catch (error) {
         statusEl.className = 'status disconnected';
-        statusEl.innerHTML = '⚠️ API Issue';
+        statusEl.innerHTML = `
+            <svg class="icon" viewBox="0 0 24 24" style="width: 12px; height: 12px; margin-right: 4px;">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="15" y1="9" x2="9" y2="15"/>
+                <line x1="9" y1="9" x2="15" y2="15"/>
+            </svg>
+            Connection Issue
+        `;
         console.warn('API check failed:', error);
     }
 }
@@ -92,7 +107,7 @@ async function toggleMonitoring() {
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
         
         if (!tab || !tab.id) {
-            throw new Error('No active tab found');
+            throw new Error('Please open a website first, then try again.');
         }
         
         if (isMonitoring) {
@@ -118,15 +133,43 @@ async function toggleMonitoring() {
                 isMonitoring = true;
                 updateUIForMonitoring(true);
             } else {
-                throw new Error(response?.error || 'Failed to start monitoring');
+                throw new Error(response?.error || 'Unable to start detection. Please try refreshing the page.');
             }
         }
         
     } catch (error) {
         console.error('Failed to toggle monitoring:', error);
         
+        // User-friendly error messages
+        let userMessage = error.message;
+        
+        if (error.message.includes('Cannot access')) {
+            userMessage = 'This page cannot be monitored. Please try a different website like YouTube or Netflix.';
+        } else if (error.message.includes('chrome://') || error.message.includes('chrome-extension://')) {
+            userMessage = 'Chrome system pages cannot be monitored. Please open a regular website.';
+        } else if (error.message.includes('Could not establish connection')) {
+            userMessage = 'Please refresh the page and try again.';
+        } else if (error.message.includes('inject')) {
+            userMessage = 'Unable to start on this page. Please try a different website.';
+        } else if (error.message.includes('Permission denied')) {
+            userMessage = 'Screen sharing permission needed. Please allow when prompted.';
+        } else if (error.message.includes('cancelled') || error.message.includes('AbortError')) {
+            userMessage = 'Screen sharing was cancelled. Please try again and click "Share".';
+        } else if (error.message.includes('NotSupported')) {
+            userMessage = 'Your browser doesn\'t support this feature. Please use Chrome or Edge.';
+        } else if (error.message.includes('timeout') || error.message.includes('network')) {
+            userMessage = 'Connection timeout. Please check your internet and try again.';
+        }
+        
         statusEl.className = 'status disconnected';
-        statusEl.innerHTML = '❌ ' + error.message;
+        statusEl.innerHTML = `
+            <svg class="icon" viewBox="0 0 24 24" style="width: 12px; height: 12px; margin-right: 4px;">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="15" y1="9" x2="9" y2="15"/>
+                <line x1="9" y1="9" x2="15" y2="15"/>
+            </svg>
+            ${userMessage}
+        `;
         
         isMonitoring = false;
         updateUIForMonitoring(false);
@@ -134,9 +177,15 @@ async function toggleMonitoring() {
         setTimeout(() => {
             if (!isMonitoring) {
                 statusEl.className = 'status connected';
-                statusEl.innerHTML = '✅ Ready';
+                statusEl.innerHTML = `
+                    <svg class="icon" viewBox="0 0 24 24" style="width: 12px; height: 12px; margin-right: 4px;">
+                        <path d="m9 12 2 2 4-4"/>
+                        <circle cx="12" cy="12" r="9"/>
+                    </svg>
+                    Ready
+                `;
             }
-        }, 3000);
+        }, 5000);
         
     } finally {
         btn.disabled = false;
@@ -151,17 +200,43 @@ function updateUIForMonitoring(monitoring) {
     const statusEl = document.getElementById('status');
     
     if (monitoring) {
-        btn.innerHTML = '⏹️ Stop Detection';
+        btn.innerHTML = `
+            <svg class="icon icon-large" viewBox="0 0 24 24">
+                <rect x="6" y="4" width="4" height="16"/>
+                <rect x="14" y="4" width="4" height="16"/>
+            </svg>
+            <span>Stop Detection</span>
+        `;
         btn.className = 'main-button danger';
         statusEl.className = 'status monitoring';
-        statusEl.innerHTML = '🔄 Monitoring...';
+        statusEl.innerHTML = `
+            <svg class="icon" viewBox="0 0 24 24" style="width: 12px; height: 12px; margin-right: 4px;">
+                <circle cx="12" cy="12" r="10"/>
+                <path d="m9 12 2 2 4-4"/>
+            </svg>
+            Monitoring...
+        `;
     } else {
-        btn.innerHTML = '🎙️ Start Detection';
+        btn.innerHTML = `
+            <svg class="icon icon-large" viewBox="0 0 24 24">
+                <path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/>
+                <path d="M19 10v2a7 7 0 01-14 0v-2"/>
+                <line x1="12" y1="19" x2="12" y2="23"/>
+                <line x1="8" y1="23" x2="16" y2="23"/>
+            </svg>
+            <span>Start Detection</span>
+        `;
         btn.className = 'main-button';
         
         if (statusEl.className !== 'status disconnected') {
             statusEl.className = 'status connected';
-            statusEl.innerHTML = '✅ Ready';
+            statusEl.innerHTML = `
+                <svg class="icon" viewBox="0 0 24 24" style="width: 12px; height: 12px; margin-right: 4px;">
+                    <path d="m9 12 2 2 4-4"/>
+                    <circle cx="12" cy="12" r="9"/>
+                </svg>
+                Ready
+            `;
         }
     }
 }
@@ -199,12 +274,15 @@ async function injectContentScript(tabId) {
     } catch (error) {
         console.error('❌ Failed to inject content script:', error);
         
+        // User-friendly error handling
         if (error.message.includes('Cannot access')) {
-            throw new Error('Cannot access this page. Try a different website.');
-        } else if (error.message.includes('chrome://')) {
-            throw new Error('Cannot run on Chrome system pages.');
+            throw new Error('This page cannot be monitored. Please try a different website like YouTube or Netflix.');
+        } else if (error.message.includes('chrome://') || error.message.includes('chrome-extension://')) {
+            throw new Error('Chrome system pages cannot be monitored. Please open a regular website.');
+        } else if (error.message.includes('Receiving end does not exist')) {
+            throw new Error('Please refresh the page and try again.');
         } else {
-            throw new Error('Failed to inject script: ' + error.message);
+            throw new Error('Unable to start on this page. Please try a different website.');
         }
     }
 }
@@ -215,7 +293,7 @@ async function sendMessageToTab(tabId, message) {
         return response;
     } catch (error) {
         if (error.message.includes('Could not establish connection')) {
-            throw new Error('Content script not ready. Please try again.');
+            throw new Error('Please refresh the page and try again.');
         }
         throw error;
     }
@@ -264,7 +342,12 @@ function displayDetections(detections) {
     if (detections.length === 0) {
         listEl.innerHTML = `
             <div class="empty-state">
-                🎤<br>
+                <svg class="icon" viewBox="0 0 24 24" style="width: 24px; height: 24px; margin-bottom: 8px; stroke: #666;">
+                    <path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/>
+                    <path d="M19 10v2a7 7 0 01-14 0v-2"/>
+                    <line x1="12" y1="19" x2="12" y2="23"/>
+                    <line x1="8" y1="23" x2="16" y2="23"/>
+                </svg><br>
                 No detections yet.<br>
                 Start monitoring to see results!
             </div>
@@ -277,7 +360,9 @@ function displayDetections(detections) {
         const date = new Date(detection.timestamp).toLocaleDateString();
         const confidence = (detection.confidence * 100).toFixed(1);
         const className = detection.prediction === 'FAKE' ? 'fake' : 'real';
-        const icon = detection.prediction === 'FAKE' ? '🚨' : '✅';
+        const icon = detection.prediction === 'FAKE' ? 
+            '<svg class="icon" viewBox="0 0 24 24" style="width: 14px; height: 14px; margin-right: 4px; stroke: #DC2626;"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>' : 
+            '<svg class="icon" viewBox="0 0 24 24" style="width: 14px; height: 14px; margin-right: 4px; stroke: #00ff00;"><path d="m9 12 2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>';
         
         return `
             <div class="detection-item ${className}">
@@ -286,10 +371,15 @@ function displayDetections(detections) {
                     <div class="detection-confidence">${confidence}%</div>
                 </div>
                 <div class="detection-result">
-                    ${icon} ${detection.prediction === 'FAKE' ? 'AI VOICE' : 'REAL VOICE'}
+                    ${icon} ${detection.prediction === 'FAKE' ? 'AI Voice' : 'Real Voice'}
                 </div>
                 <div class="detection-source">
-                    🖥️ Screen Audio
+                    <svg class="icon" viewBox="0 0 24 24" style="width: 12px; height: 12px; margin-right: 4px; stroke: #FF6B35;">
+                        <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+                        <line x1="8" y1="21" x2="16" y2="21"/>
+                        <line x1="12" y1="17" x2="12" y2="21"/>
+                    </svg>
+                    Screen Audio
                 </div>
             </div>
         `;
@@ -307,7 +397,13 @@ async function clearHistory() {
         chrome.storage.local.set({ detections: [] });
         await loadDetectionHistory();
         
-        clearBtn.innerHTML = '✅ Cleared';
+        clearBtn.innerHTML = `
+            <svg class="icon" viewBox="0 0 24 24" style="width: 12px; height: 12px; margin-right: 4px;">
+                <path d="m9 12 2 2 4-4"/>
+                <circle cx="12" cy="12" r="9"/>
+            </svg>
+            Cleared
+        `;
         setTimeout(() => {
             clearBtn.innerHTML = originalText;
             clearBtn.disabled = false;
@@ -315,7 +411,14 @@ async function clearHistory() {
         
     } catch (error) {
         console.error('Failed to clear history:', error);
-        clearBtn.innerHTML = '❌ Error';
+        clearBtn.innerHTML = `
+            <svg class="icon" viewBox="0 0 24 24" style="width: 12px; height: 12px; margin-right: 4px;">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="15" y1="9" x2="9" y2="15"/>
+                <line x1="9" y1="9" x2="15" y2="15"/>
+            </svg>
+            Error
+        `;
         setTimeout(() => {
             clearBtn.innerHTML = originalText;
             clearBtn.disabled = false;

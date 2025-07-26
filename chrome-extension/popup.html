@@ -16,6 +16,7 @@
             background: #0a0a0a;
             color: #ffffff;
             font-size: 12px;
+            font-weight: 200;
             line-height: 1.4;
             overflow: hidden;
         }
@@ -60,7 +61,7 @@
         .shield-svg {
             width: 40px;
             height: 40px;
-            stroke: #FFD700;
+            stroke: #FF6B35;
             stroke-width: 1;
             fill: none;
         }
@@ -74,7 +75,7 @@
         .loading-letter {
             font-size: 32px;
             font-weight: 200;
-            color: #FFD700;
+            color: #FF6B35;
             letter-spacing: 1px;
             font-style: italic;
             animation: letterFloat 0.6s ease forwards;
@@ -92,7 +93,7 @@
 
         .underline {
             height: 2px;
-            background: #FFD700;
+            background: #FF6B35;
             width: 0;
             margin-bottom: 20px;
             animation: lineExpand 0.8s ease forwards;
@@ -101,9 +102,8 @@
 
         .tagline {
             color: #666;
-            font-size: 10px;
+            font-size: 16px;
             letter-spacing: 2px;
-            text-transform: uppercase;
             opacity: 0;
             animation: fadeIn 0.6s ease forwards;
             animation-delay: 1.2s;
@@ -119,10 +119,9 @@
         .main-title {
             font-size: 28px;
             font-weight: 200;
-            color: #FFD700;
+            color: #FF6B35;
             letter-spacing: 6px;
             margin: 0 0 8px 0;
-            text-transform: uppercase;
         }
 
         .subtitle-row {
@@ -134,10 +133,9 @@
         }
 
         .subtitle {
-            font-size: 9px;
+            font-size: 14px;
             color: #666;
             letter-spacing: 2px;
-            text-transform: uppercase;
         }
 
         .status {
@@ -146,9 +144,9 @@
             font-size: 10px;
             font-weight: 500;
             display: inline-block;
-            border: 1px solid #ffd700;
-            background: rgba(255, 215, 0, 0.1);
-            color: #ffd700;
+            border: 1px solid #FF6B35;
+            background: rgba(255, 107, 53, 0.1);
+            color: #FF6B35;
             margin-bottom: 18px;
             transition: all 0.3s ease;
         }
@@ -160,16 +158,16 @@
         }
 
         .status.monitoring {
-            color: #ffd700;
-            border-color: #ffd700;
-            background: rgba(255, 215, 0, 0.1);
+            color: #FF6B35;
+            border-color: #FF6B35;
+            background: rgba(255, 107, 53, 0.1);
             animation: statusPulse 2s infinite;
         }
 
         .status.disconnected {
-            color: #ff0000;
-            border-color: #ff0000;
-            background: rgba(255, 0, 0, 0.1);
+            color: #DC2626;
+            border-color: #DC2626;
+            background: rgba(220, 38, 38, 0.1);
         }
 
         /* Compact Controls */
@@ -184,7 +182,7 @@
 
         .instruction-card {
             background: rgba(255, 255, 255, 0.02);
-            border: 1px solid rgba(255, 215, 0, 0.3);
+            border: 1px solid rgba(255, 107, 53, 0.3);
             border-radius: 6px;
             padding: 12px;
             margin-bottom: 16px;
@@ -195,7 +193,7 @@
             font-weight: 600;
             font-size: 12px;
             margin-bottom: 10px;
-            color: #FFD700;
+            color: #FF6B35;
             text-align: center;
             letter-spacing: 0.5px;
         }
@@ -217,7 +215,7 @@
         }
 
         .step-number {
-            background: #FFD700;
+            background: #FF6B35;
             color: #000;
             border-radius: 50%;
             width: 18px;
@@ -248,7 +246,7 @@
 
         .main-button {
             background: #000000;
-            border: 1px solid #FFD700;
+            border: 1px solid #FF6B35;
             color: #ffffff;
             padding: 14px 22px;
             border-radius: 40px;
@@ -256,7 +254,6 @@
             cursor: pointer;
             font-size: 13px;
             letter-spacing: 2px;
-            text-transform: uppercase;
             transition: all 0.3s ease;
             display: flex;
             align-items: center;
@@ -267,7 +264,7 @@
 
         .main-button:hover {
             transform: translateY(-1px);
-            box-shadow: 0 4px 20px rgba(255, 215, 0, 0.3);
+            box-shadow: 0 4px 20px rgba(255, 107, 53, 0.3);
         }
 
         .main-button:active {
@@ -275,8 +272,8 @@
         }
 
         .main-button.danger {
-            background: #ff0000;
-            border-color: #ff0000;
+            background: #DC2626;
+            border-color: #DC2626;
             animation: recordingPulse 2s infinite;
         }
 
@@ -289,23 +286,22 @@
         /* Compact Secondary Button */
         .secondary-button {
             background: rgba(255, 255, 255, 0.02);
-            border: 1px solid rgba(255, 215, 0, 0.3);
-            color: #FFD700;
+            border: 1px solid rgba(255, 107, 53, 0.3);
+            color: #FF6B35;
             padding: 10px 16px;
             border-radius: 4px;
             font-weight: 300;
             cursor: pointer;
             font-size: 11px;
             letter-spacing: 1px;
-            text-transform: uppercase;
             transition: all 0.3s ease;
             text-align: center;
             margin-bottom: 16px;
         }
 
         .secondary-button:hover {
-            background: rgba(255, 215, 0, 0.1);
-            border-color: #FFD700;
+            background: rgba(255, 107, 53, 0.1);
+            border-color: #FF6B35;
             transform: translateY(-1px);
         }
 
@@ -313,16 +309,16 @@
         .back-header {
             padding: 16px;
             background: #0a0a0a;
-            border-bottom: 1px solid rgba(255, 215, 0, 0.3);
+            border-bottom: 1px solid rgba(255, 107, 53, 0.3);
             display: flex;
             align-items: center;
             gap: 10px;
         }
 
         .back-button {
-            background: rgba(255, 215, 0, 0.1);
-            border: 1px solid #FFD700;
-            color: #FFD700;
+            background: rgba(255, 107, 53, 0.1);
+            border: 1px solid #FF6B35;
+            color: #FF6B35;
             width: 28px;
             height: 28px;
             border-radius: 4px;
@@ -335,7 +331,7 @@
         }
 
         .back-button:hover {
-            background: rgba(255, 215, 0, 0.2);
+            background: rgba(255, 107, 53, 0.2);
             color: #ffffff;
         }
 
@@ -361,27 +357,26 @@
 
         .clear-button {
             width: 100%;
-            background: rgba(255, 0, 0, 0.1);
-            border: 1px solid #ff0000;
-            color: #ff0000;
+            background: rgba(220, 38, 38, 0.1);
+            border: 1px solid #DC2626;
+            color: #DC2626;
             padding: 8px 12px;
             border-radius: 4px;
             font-weight: 300;
             cursor: pointer;
             font-size: 10px;
             letter-spacing: 1px;
-            text-transform: uppercase;
             transition: all 0.3s ease;
         }
 
         .clear-button:hover {
-            background: rgba(255, 0, 0, 0.2);
+            background: rgba(220, 38, 38, 0.2);
             color: #ff4444;
         }
 
         .stats-card {
             background: rgba(255, 255, 255, 0.02);
-            border: 1px solid rgba(255, 215, 0, 0.3);
+            border: 1px solid rgba(255, 107, 53, 0.3);
             border-radius: 6px;
             padding: 12px;
             margin: 0 16px 12px 16px;
@@ -392,7 +387,7 @@
             font-size: 13px;
             font-weight: 300;
             text-align: center;
-            color: #FFD700;
+            color: #FF6B35;
             letter-spacing: 1px;
         }
 
@@ -406,7 +401,7 @@
             text-align: center;
             padding: 10px 6px;
             background: rgba(0, 0, 0, 0.3);
-            border: 1px solid rgba(255, 215, 0, 0.2);
+            border: 1px solid rgba(255, 107, 53, 0.2);
             border-radius: 4px;
         }
 
@@ -421,10 +416,9 @@
         .stat-label {
             font-size: 9px;
             opacity: 0.8;
-            text-transform: uppercase;
             letter-spacing: 0.5px;
             font-weight: 300;
-            color: #FFD700;
+            color: #FF6B35;
         }
 
         .detections-section {
@@ -441,7 +435,7 @@
             font-size: 13px;
             font-weight: 300;
             text-align: center;
-            color: #FFD700;
+            color: #FF6B35;
             letter-spacing: 1px;
         }
 
@@ -452,7 +446,7 @@
 
         .detection-item {
             background: rgba(255, 255, 255, 0.02);
-            border: 1px solid rgba(255, 215, 0, 0.2);
+            border: 1px solid rgba(255, 107, 53, 0.2);
             border-radius: 4px;
             padding: 10px;
             margin-bottom: 8px;
@@ -460,8 +454,8 @@
         }
 
         .detection-item.fake {
-            border-color: rgba(255, 0, 0, 0.5);
-            background: rgba(255, 0, 0, 0.05);
+            border-color: rgba(220, 38, 38, 0.5);
+            background: rgba(220, 38, 38, 0.05);
         }
 
         .detection-item.real {
@@ -482,7 +476,7 @@
         }
 
         .detection-list::-webkit-scrollbar-thumb {
-            background: linear-gradient(180deg, #FFD700, #ff0000);
+            background: linear-gradient(180deg, #FF6B35, #DC2626);
             border-radius: 2px;
         }
 
@@ -505,12 +499,12 @@
             font-size: 10px;
             opacity: 0.7;
             font-weight: 300;
-            color: #FFD700;
+            color: #FF6B35;
         }
 
         .detection-confidence {
-            background: rgba(255, 215, 0, 0.1);
-            border: 1px solid #FFD700;
+            background: rgba(255, 107, 53, 0.1);
+            border: 1px solid #FF6B35;
             color: #ffffff;
             padding: 3px 7px;
             border-radius: 8px;
@@ -531,11 +525,11 @@
             font-size: 10px;
             opacity: 0.7;
             font-weight: 300;
-            color: #FFD700;
+            color: #FF6B35;
         }
 
         .accent-text {
-            color: #ff0000;
+            color: #DC2626;
         }
 
         /* Icons */
@@ -550,6 +544,7 @@
         .icon-large {
             width: 18px;
             height: 18px;
+            margin-top: 1px;
         }
 
         /* Loading Spinner */
@@ -557,9 +552,9 @@
             display: inline-block;
             width: 10px;
             height: 10px;
-            border: 2px solid #FFD700;
+            border: 2px solid #FF6B35;
             border-radius: 50%;
-            border-top-color: #ff0000;
+            border-top-color: #DC2626;
             animation: spin 1s ease-in-out infinite;
         }
 
@@ -642,7 +637,13 @@
                 </svg>
                 <span class="subtitle">AI Audio Detection</span>
             </div>
-            <div id="status" class="status connected">✅ Ready</div>
+            <div id="status" class="status connected">
+                <svg class="icon" viewBox="0 0 24 24" style="width: 12px; height: 12px; margin-right: 4px;">
+                    <path d="m9 12 2 2 4-4"/>
+                    <circle cx="12" cy="12" r="9"/>
+                </svg>
+                Ready
+            </div>
         </div>
 
         <div class="controls">
@@ -676,7 +677,7 @@
                         <line x1="12" y1="19" x2="12" y2="23"/>
                         <line x1="8" y1="23" x2="16" y2="23"/>
                     </svg>
-                    <span>🎙️ Start Detection</span>
+                    <span>Start Detection</span>
                 </button>
             </div>
 
@@ -722,7 +723,12 @@
                 <h3 class="detections-title">Recent Detections</h3>
                 <div id="detectionList" class="detection-list">
                     <div class="empty-state">
-                        🎤<br>
+                        <svg class="icon" viewBox="0 0 24 24" style="width: 24px; height: 24px; margin-bottom: 8px; stroke: #666;">
+                            <path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/>
+                            <path d="M19 10v2a7 7 0 01-14 0v-2"/>
+                            <line x1="12" y1="19" x2="12" y2="23"/>
+                            <line x1="8" y1="23" x2="16" y2="23"/>
+                        </svg><br>
                         No detections yet.<br>
                         Start monitoring to see results!
                     </div>
