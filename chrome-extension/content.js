@@ -53,16 +53,20 @@ if (window.aiVoiceDetectorInjected) {
 
     // Inject custom styles once
     function injectLionProjectStyles() {
-        if (document.getElementById('lion-project-styles')) return;
+        const oldStyle = document.getElementById('lion-project-styles');
+        if (oldStyle) oldStyle.remove();
         
         const style = document.createElement('style');
         style.id = 'lion-project-styles';
+        if (document.getElementById('lion-project-styles')) return;
+        
         style.textContent = `
             @import url('https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600&display=swap');
             
             .lion-notification {
                 position: fixed;
                 top: 24px;
+                padding: 16px 24px;
                 left: 24px;
                 background: linear-gradient(135deg, #DC2626 0%, #ff4444 100%);
                 color: white;
@@ -71,7 +75,7 @@ if (window.aiVoiceDetectorInjected) {
                 font-weight: 300;
                 z-index: 999999;
                 box-shadow: 0 12px 40px rgba(220, 38, 38, 0.4);
-                max-width: 340px;
+                max-width: 250px;
                 border: 1px solid rgba(255, 107, 53, 0.4);
                 backdrop-filter: blur(20px);
                 animation: lionAlertSlide 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
@@ -92,6 +96,7 @@ if (window.aiVoiceDetectorInjected) {
                 opacity: 0.95;
                 line-height: 1.5;
                 font-weight: 300;
+                white-space: pre-line;
             }
             
             .lion-alert {
