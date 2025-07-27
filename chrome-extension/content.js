@@ -64,40 +64,34 @@ if (window.aiVoiceDetectorInjected) {
                 position: fixed;
                 top: 24px;
                 left: 24px;
-                background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
+                background: linear-gradient(135deg, #DC2626 0%, #ff4444 100%);
                 color: white;
-                padding: 20px 24px;
                 border-radius: 16px;
                 font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-                font-size: 14px;
                 font-weight: 300;
                 z-index: 999999;
-                max-width: 320px;
-                border: 1px solid rgba(255, 107, 53, 0.3);
+                box-shadow: 0 12px 40px rgba(220, 38, 38, 0.4);
+                max-width: 340px;
+                border: 1px solid rgba(255, 107, 53, 0.4);
                 backdrop-filter: blur(20px);
-                box-shadow: 0 12px 40px rgba(255, 107, 53, 0.2);
-                line-height: 1.5;
-                white-space: pre-line;
-                animation: lionSlideIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+                animation: lionAlertSlide 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
                 -webkit-font-smoothing: antialiased;
                 -moz-osx-font-smoothing: grayscale;
             }
             
             .lion-notification-title {
+                font-size: 18px;
                 font-weight: 400;
-                margin-bottom: 6px;
-                background: linear-gradient(135deg, #FF6B35, #DC2626);
-                -webkit-background-clip: text;
-                -webkit-text-fill-color: transparent;
-                background-clip: text;
-                font-size: 16px;
+                display: flex;
+                align-items: center;
                 letter-spacing: 0.5px;
             }
             
             .lion-notification-body {
-                opacity: 0.9;
+                font-size: 14px;
+                opacity: 0.95;
+                line-height: 1.5;
                 font-weight: 300;
-                line-height: 1.6;
             }
             
             .lion-alert {
@@ -262,7 +256,7 @@ if (window.aiVoiceDetectorInjected) {
             showLionNotification(
                 'Setup Required', 
                 'Click "Entire Screen"\nSelect your screen\nCheck "Share system audio"\nClick "Share"', 
-                8000
+                10000
             );
             
             // Mac-compatible media constraints
@@ -816,11 +810,10 @@ if (window.aiVoiceDetectorInjected) {
                     <path d="M12 9v4"/>
                     <path d="m12 17 .01 0"/>
                 </svg>
-                AI Voice Detected
+                AI Detected
             </div>
             <div class="lion-alert-body">
-                Confidence: ${(result.confidence * 100).toFixed(1)}%<br>
-                ${isMac ? 'Mac' : 'PC'} Real-time Detection
+                Confidence: ${(result.confidence * 100).toFixed(1)}
             </div>
             <button class="lion-alert-button" id="dismissLionAlert">
                 Dismiss
@@ -932,11 +925,10 @@ if (window.aiVoiceDetectorInjected) {
         
         const notification = document.createElement('div');
         notification.className = 'lion-notification';
-        
         notification.innerHTML = `
             <div class="lion-notification-title">
-                ${title}
-            </div>
+               ${title}
+            </div>   
             <div class="lion-notification-body">
                 ${message}
             </div>

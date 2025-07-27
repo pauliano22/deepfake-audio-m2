@@ -201,9 +201,9 @@ function updateUIForMonitoring(monitoring) {
     
     if (monitoring) {
         btn.innerHTML = `
-            <svg class="icon icon-large" viewBox="0 0 24 24">
-                <rect x="6" y="4" width="4" height="16"/>
-                <rect x="14" y="4" width="4" height="16"/>
+            <svg class="icon">
+                <rect x="2" y="0" width="4" height="16"/>
+                <rect x="10" y="0" width="4" height="16"/>
             </svg>
             <span>Stop Detection</span>
         `;

@@ -1,867 +1,940 @@
 <!DOCTYPE html>
 <html>
+
 <head>
-    <meta charset="utf-8">
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600&display=swap');
-        
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-
-        body {
-            width: 380px;
-            height: 580px;
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-            background: linear-gradient(135deg, #000000 0%, #0a0a0a 100%);
-            color: #ffffff;
-            font-size: 14px;
-            font-weight: 300;
-            line-height: 1.5;
-            overflow: hidden;
-            -webkit-font-smoothing: antialiased;
-            -moz-osx-font-smoothing: grayscale;
-        }
-
-        .page {
-            display: none;
-            height: 100vh;
-            overflow: hidden;
-        }
-
-        .page.active {
-            display: flex;
-            flex-direction: column;
-        }
-
-        /* Loading Screen */
-        .loading-screen {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: linear-gradient(135deg, #000000 0%, #0a0a0a 100%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-direction: column;
-            z-index: 1000;
-            opacity: 1;
-            transition: opacity 0.8s ease;
-        }
-
-        .loading-screen.hidden {
-            opacity: 0;
-            pointer-events: none;
-        }
-
-        .shield-container {
-            margin-bottom: 32px;
-            position: relative;
-        }
-
-        .shield-outer-ring {
-            width: 80px;
-            height: 80px;
-            border: 2px solid transparent;
-            border-top: 2px solid #FF6B35;
-            border-radius: 50%;
-            margin: 0 auto;
-            animation: rotate 2s linear infinite;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .shield-inner-ring {
-            width: 50px;
-            height: 50px;
-            border: 1px solid rgba(255, 107, 53, 0.3);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            animation: rotateReverse 3s linear infinite;
-        }
-
-        .shield-svg {
-            width: 28px;
-            height: 28px;
-            stroke: #FF6B35;
-            stroke-width: 1.5;
-            fill: none;
-            filter: drop-shadow(0 0 15px rgba(255, 107, 53, 0.6));
-            animation: glow 2s ease-in-out infinite alternate;
-        }
-
-        .letter-container {
-            display: flex;
-            justify-content: center;
-            gap: 8px;
-            margin-bottom: 16px;
-        }
-
-        .loading-letter {
-            font-size: 36px;
-            font-weight: 200;
-            color: #FF6B35;
-            letter-spacing: 2px;
-            animation: letterFloat 0.8s ease forwards;
-            opacity: 0;
-            transform: translateY(20px);
-            text-shadow: 0 0 20px rgba(255, 107, 53, 0.6);
-        }
-
-        .loading-letter:nth-child(1) { animation-delay: 0.3s; }
-        .loading-letter:nth-child(2) { animation-delay: 0.5s; }
-        .loading-letter:nth-child(3) { 
-            animation-delay: 0.7s;
-            animation: letterFloatSpin 1.2s ease forwards;
-        }
-        .loading-letter:nth-child(4) { animation-delay: 0.9s; }
-
-        .underline {
-            height: 2px;
-            background: linear-gradient(90deg, #FF6B35, #DC2626);
-            width: 0;
-            margin: 0 auto 20px;
-            animation: lineExpand 0.8s ease forwards;
-            animation-delay: 1.2s;
-        }
-
-        .tagline {
-            color: #666;
-            font-size: 14px;
-            letter-spacing: 1px;
-            opacity: 0;
-            animation: fadeIn 0.6s ease forwards;
-            animation-delay: 1.4s;
-            font-weight: 300;
-        }
-
-        /* Main Header */
-        .header {
-            padding: 24px 20px 20px 20px;
-            text-align: center;
-            background: linear-gradient(135deg, rgba(255, 107, 53, 0.05) 0%, rgba(220, 38, 38, 0.05) 100%);
-            border-bottom: 1px solid rgba(255, 107, 53, 0.1);
-        }
-
-        .main-title {
-            font-size: 32px;
-            font-weight: 200;
-            background: linear-gradient(135deg, #FF6B35, #DC2626);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            letter-spacing: 8px;
-            margin: 0 0 12px 0;
-            text-transform: uppercase;
-        }
-
-        .subtitle-row {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            margin-bottom: 16px;
-        }
-
-        .subtitle {
-            font-size: 13px;
-            color: #888;
-            letter-spacing: 2px;
-            font-weight: 300;
-        }
-
-        .status {
-            padding: 8px 16px;
-            border-radius: 12px;
-            font-size: 11px;
-            font-weight: 400;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            border: 1px solid rgba(255, 107, 53, 0.3);
-            background: rgba(255, 107, 53, 0.1);
-            color: #FF6B35;
-            transition: all 0.3s ease;
-            backdrop-filter: blur(10px);
-        }
-
-        .status.connected {
-            color: #00ff88;
-            border-color: rgba(0, 255, 136, 0.4);
-            background: rgba(0, 255, 136, 0.1);
-        }
-
-        .status.monitoring {
-            color: #FF6B35;
-            border-color: rgba(255, 107, 53, 0.5);
-            background: rgba(255, 107, 53, 0.15);
-            animation: statusPulse 2s infinite;
-        }
-
-        .status.disconnected {
-            color: #ff4444;
-            border-color: rgba(255, 68, 68, 0.4);
-            background: rgba(255, 68, 68, 0.1);
-        }
-
-        /* Controls Section */
-        .controls {
-            flex: 1;
-            padding: 24px 20px;
-            background: linear-gradient(180deg, transparent 0%, rgba(255, 107, 53, 0.02) 100%);
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-        }
-
-        .instruction-card {
-            background: linear-gradient(135deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 107, 53, 0.08) 100%);
-            border: 1px solid rgba(255, 107, 53, 0.2);
-            border-radius: 16px;
-            padding: 20px;
-            margin-bottom: 24px;
-            position: relative;
-            backdrop-filter: blur(20px);
-            box-shadow: 0 8px 32px rgba(255, 107, 53, 0.1);
-        }
-
-        .instruction-title {
-            font-weight: 500;
-            font-size: 16px;
-            margin-bottom: 16px;
-            color: #FF6B35;
-            text-align: center;
-            letter-spacing: 1px;
-        }
-
-        .instruction-steps {
-            font-size: 13px;
-            line-height: 1.6;
-            color: #ffffff;
-        }
-
-        .step {
-            display: flex;
-            align-items: flex-start;
-            margin-bottom: 12px;
-        }
-
-        .step:last-child {
-            margin-bottom: 0;
-        }
-
-        .step-number {
-            background: linear-gradient(135deg, #FF6B35, #DC2626);
-            color: #000;
-            border-radius: 50%;
-            width: 24px;
-            height: 24px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 11px;
-            font-weight: 600;
-            margin-right: 12px;
-            flex-shrink: 0;
-            margin-top: 2px;
-            box-shadow: 0 2px 8px rgba(255, 107, 53, 0.3);
-        }
-
-        .step-text {
-            flex: 1;
-            padding-top: 2px;
-            font-weight: 300;
-        }
-
-        /* Button Styling */
-        .button-wrapper {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-bottom: 20px;
-            position: relative;
-        }
-
-        .main-button {
-            background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
-            border: 2px solid;
-            border-image: linear-gradient(135deg, #FF6B35, #DC2626) 1;
-            color: #ffffff;
-            padding: 16px 28px;
-            border-radius: 16px;
-            font-weight: 400;
-            cursor: pointer;
-            font-size: 14px;
-            letter-spacing: 1px;
-            transition: all 0.4s ease;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            min-width: 180px;
-            justify-content: center;
-            backdrop-filter: blur(20px);
-            box-shadow: 0 8px 32px rgba(255, 107, 53, 0.2);
-            position: relative;
-            overflow: hidden;
-        }
-
-        .main-button::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            padding: 2px;
-            background: linear-gradient(135deg, #FF6B35, #DC2626);
-            border-radius: inherit;
-            mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-            mask-composite: xor;
-            -webkit-mask-composite: xor;
-        }
-
-        .main-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 12px 40px rgba(255, 107, 53, 0.4);
-            background: linear-gradient(135deg, #FF6B35 0%, #DC2626 100%);
-            color: #000;
-        }
-
-        .main-button:active {
-            transform: translateY(0);
-        }
-
-        .main-button.danger {
-            background: linear-gradient(135deg, #DC2626, #ff4444);
-            animation: recordingPulse 2s infinite;
-            color: #000;
-        }
-
-        .main-button:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        /* Secondary Button */
-        .secondary-button {
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 107, 53, 0.3);
-            color: #FF6B35;
-            padding: 12px 20px;
-            border-radius: 12px;
-            font-weight: 300;
-            cursor: pointer;
-            font-size: 13px;
-            letter-spacing: 0.5px;
-            transition: all 0.3s ease;
-            text-align: center;
-            margin-bottom: 16px;
-            backdrop-filter: blur(10px);
-        }
-
-        .secondary-button:hover {
-            background: rgba(255, 107, 53, 0.1);
-            border-color: #FF6B35;
-            transform: translateY(-1px);
-            box-shadow: 0 4px 16px rgba(255, 107, 53, 0.2);
-        }
-
-        /* History Page */
-        .back-header {
-            padding: 20px;
-            background: linear-gradient(135deg, rgba(255, 107, 53, 0.05) 0%, rgba(220, 38, 38, 0.05) 100%);
-            border-bottom: 1px solid rgba(255, 107, 53, 0.2);
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .back-button {
-            background: rgba(255, 107, 53, 0.1);
-            border: 1px solid rgba(255, 107, 53, 0.3);
-            color: #FF6B35;
-            width: 36px;
-            height: 36px;
-            border-radius: 10px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 16px;
-            transition: all 0.3s ease;
-            backdrop-filter: blur(10px);
-        }
-
-        .back-button:hover {
-            background: rgba(255, 107, 53, 0.2);
-            color: #ffffff;
-            transform: translateX(-2px);
-        }
-
-        .back-title {
-            font-size: 18px;
-            font-weight: 300;
-            color: #ffffff;
-            margin: 0;
-            letter-spacing: 1px;
-        }
-
-        .history-content {
-            flex: 1;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .history-controls {
-            padding: 16px 20px;
-            background: rgba(255, 107, 53, 0.02);
-            border-bottom: 1px solid rgba(255, 107, 53, 0.1);
-        }
-
-        .clear-button {
-            width: 100%;
-            background: rgba(220, 38, 38, 0.1);
-            border: 1px solid rgba(220, 38, 38, 0.3);
-            color: #ff4444;
-            padding: 12px 16px;
-            border-radius: 10px;
-            font-weight: 300;
-            cursor: pointer;
-            font-size: 12px;
-            letter-spacing: 0.5px;
-            transition: all 0.3s ease;
-            backdrop-filter: blur(10px);
-        }
-
-        .clear-button:hover {
-            background: rgba(220, 38, 38, 0.2);
-            color: #ff6666;
-            transform: translateY(-1px);
-        }
-
-        .stats-card {
-            background: linear-gradient(135deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 107, 53, 0.08) 100%);
-            border: 1px solid rgba(255, 107, 53, 0.2);
-            border-radius: 16px;
-            padding: 20px;
-            margin: 0 20px 16px 20px;
-            backdrop-filter: blur(20px);
-            box-shadow: 0 8px 32px rgba(255, 107, 53, 0.1);
-        }
-
-        .stats-title {
-            margin: 0 0 16px 0;
-            font-size: 16px;
-            font-weight: 400;
-            text-align: center;
-            color: #FF6B35;
-            letter-spacing: 1px;
-        }
-
-        .stats-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
-        }
-
-        .stat-item {
-            text-align: center;
-            padding: 16px 8px;
-            background: rgba(0, 0, 0, 0.3);
-            border: 1px solid rgba(255, 107, 53, 0.2);
-            border-radius: 12px;
-            backdrop-filter: blur(10px);
-            transition: all 0.3s ease;
-        }
-
-        .stat-item:hover {
-            border-color: rgba(255, 107, 53, 0.4);
-            transform: translateY(-2px);
-        }
-
-        .stat-number {
-            font-size: 24px;
-            font-weight: 200;
-            display: block;
-            color: #ffffff;
-            margin-bottom: 4px;
-        }
-
-        .stat-label {
-            font-size: 10px;
-            opacity: 0.8;
-            letter-spacing: 0.5px;
-            font-weight: 300;
-            color: #FF6B35;
-            text-transform: uppercase;
-        }
-
-        .detections-section {
-            flex: 1;
-            padding: 0 20px 20px 20px;
-            background: linear-gradient(180deg, transparent 0%, rgba(255, 107, 53, 0.02) 100%);
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .detections-title {
-            margin: 0 0 16px 0;
-            font-size: 16px;
-            font-weight: 400;
-            text-align: center;
-            color: #FF6B35;
-            letter-spacing: 1px;
-        }
-
-        .detection-list {
-            flex: 1;
-            overflow-y: auto;
-        }
-
-        .detection-item {
-            background: linear-gradient(135deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 107, 53, 0.05) 100%);
-            border: 1px solid rgba(255, 107, 53, 0.2);
-            border-radius: 12px;
-            padding: 16px;
-            margin-bottom: 12px;
-            transition: all 0.3s ease;
-            backdrop-filter: blur(20px);
-        }
-
-        .detection-item.fake {
-            border-color: rgba(220, 38, 38, 0.5);
-            background: linear-gradient(135deg, rgba(220, 38, 38, 0.08) 0%, rgba(255, 68, 68, 0.05) 100%);
-        }
-
-        .detection-item.real {
-            border-color: rgba(0, 255, 136, 0.5);
-            background: linear-gradient(135deg, rgba(0, 255, 136, 0.08) 0%, rgba(0, 200, 100, 0.05) 100%);
-        }
-
-        .detection-item:last-child {
-            margin-bottom: 0;
-        }
-
-        .detection-item:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 32px rgba(255, 107, 53, 0.15);
-        }
-
-        .detection-list::-webkit-scrollbar {
-            width: 4px;
-        }
-
-        .detection-list::-webkit-scrollbar-track {
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 2px;
-        }
-
-        .detection-list::-webkit-scrollbar-thumb {
-            background: linear-gradient(180deg, #FF6B35, #DC2626);
-            border-radius: 2px;
-        }
-
-        .detection-list::-webkit-scrollbar-thumb:hover {
-            background: linear-gradient(180deg, #ff8855, #ff4444);
-        }
-
-        .empty-state {
-            text-align: center;
-            color: #666666;
-            font-size: 13px;
-            padding: 32px 16px;
-            line-height: 1.6;
-            font-weight: 300;
-        }
-
-        .detection-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 8px;
-        }
-
-        .detection-time {
-            font-size: 11px;
-            opacity: 0.7;
-            font-weight: 300;
-            color: #FF6B35;
-        }
-
-        .detection-confidence {
-            background: rgba(255, 107, 53, 0.15);
-            border: 1px solid rgba(255, 107, 53, 0.3);
-            color: #ffffff;
-            padding: 4px 10px;
-            border-radius: 10px;
-            font-size: 10px;
-            font-weight: 500;
-            letter-spacing: 0.3px;
-            backdrop-filter: blur(10px);
-        }
-
-        .detection-result {
-            font-weight: 400;
-            font-size: 13px;
-            margin-bottom: 4px;
-            color: #ffffff;
-            letter-spacing: 0.5px;
-        }
-
-        .detection-source {
-            font-size: 11px;
-            opacity: 0.7;
-            font-weight: 300;
-            color: #FF6B35;
-        }
-
-        .accent-text {
-            color: #ff4444;
-        }
-
-        /* Icons */
-        .icon {
-            width: 16px;
-            height: 16px;
-            stroke: currentColor;
-            stroke-width: 1.5;
-            fill: none;
-        }
-
-        .icon-large {
-            width: 20px;
-            height: 20px;
-            margin-top: 1px;
-        }
-
-        /* Loading Spinner */
-        .loading {
-            display: inline-block;
-            width: 12px;
-            height: 12px;
-            border: 2px solid #FF6B35;
-            border-radius: 50%;
-            border-top-color: #DC2626;
-            animation: spin 1s ease-in-out infinite;
-        }
-
-        /* Animations */
-        @keyframes rotate {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        @keyframes rotateReverse {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(-360deg); }
-        }
-
-        @keyframes glow {
-            0% { filter: drop-shadow(0 0 15px rgba(255, 107, 53, 0.6)); }
-            100% { filter: drop-shadow(0 0 25px rgba(255, 107, 53, 1)); }
-        }
-
-        @keyframes letterFloat {
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        @keyframes letterFloatSpin {
-            0% {
-                opacity: 0;
-                transform: translateY(20px) rotate(0deg) scale(0.5);
-            }
-            50% {
-                opacity: 1;
-                transform: translateY(0) rotate(360deg) scale(1.3);
-            }
-            100% {
-                opacity: 1;
-                transform: translateY(0) rotate(720deg) scale(1);
-            }
-        }
-
-        @keyframes lineExpand {
-            to { width: 120px; }
-        }
-
-        @keyframes fadeIn {
-            to { opacity: 1; }
-        }
-
-        @keyframes recordingPulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.8; }
-        }
-
-        @keyframes statusPulse {
-            0%, 100% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.8; transform: scale(1.02); }
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        /* Smooth transitions */
-        .page {
-            transition: none;
-        }
-
-        /* Enhanced focus states */
-        button:focus-visible {
-            outline: 2px solid #FF6B35;
-            outline-offset: 2px;
-        }
-
-        /* Selection styling */
-        ::selection {
-            background-color: rgba(255, 107, 53, 0.3);
-            color: #ffffff;
-        }
-    </style>
+   <meta charset="utf-8">
+   <style>
+       @import url('https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600&display=swap');
+
+       * {
+           box-sizing: border-box;
+           margin: 0;
+           padding: 0;
+       }
+
+       body {
+           width: 380px;
+           height: 580px;
+           font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+           background: linear-gradient(135deg, #000000 0%, #0a0a0a 100%);
+           color: #ffffff;
+           font-size: 14px;
+           font-weight: 200;
+           line-height: 1.5;
+           overflow: hidden;
+           -webkit-font-smoothing: antialiased;
+           -moz-osx-font-smoothing: grayscale;
+       }
+
+       .page {
+           display: none;
+           height: 100vh;
+           overflow: hidden;
+       }
+
+       .page.active {
+           display: flex;
+           flex-direction: column;
+       }
+
+       /* Loading Screen */
+       .loading-screen {
+           position: fixed;
+           top: 0;
+           left: 0;
+           right: 0;
+           bottom: 0;
+           background: linear-gradient(135deg, #000000 0%, #0a0a0a 100%);
+           display: flex;
+           align-items: center;
+           justify-content: center;
+           flex-direction: column;
+           z-index: 1000;
+           opacity: 1;
+           transition: opacity 0.8s ease;
+       }
+
+       .loading-screen.hidden {
+           opacity: 0;
+           pointer-events: none;
+       }
+
+       .shield-container {
+           margin-bottom: 32px;
+           position: relative;
+       }
+
+       .shield-outer-ring {
+           width: 80px;
+           height: 80px;
+           border: 2px solid transparent;
+           border-top: 2px solid #FF6B35;
+           border-radius: 50%;
+           margin: 0 auto;
+           animation: rotate 2s linear infinite;
+           display: flex;
+           align-items: center;
+           justify-content: center;
+       }
+
+       .shield-inner-ring {
+           width: 50px;
+           height: 50px;
+           border: 1px solid rgba(255, 107, 53, 0.3);
+           border-radius: 50%;
+           display: flex;
+           align-items: center;
+           justify-content: center;
+           animation: rotateReverse 3s linear infinite;
+       }
+
+       .shield-svg {
+           width: 28px;
+           height: 28px;
+           stroke: #FF6B35;
+           stroke-width: 1.5;
+           fill: none;
+           filter: drop-shadow(0 0 15px rgba(255, 107, 53, 0.6));
+           animation: glow 2s ease-in-out infinite alternate;
+       }
+
+       .letter-container {
+           display: flex;
+           justify-content: center;
+           gap: 8px;
+           margin-bottom: 16px;
+       }
+
+       .loading-letter {
+           font-size: 36px;
+           font-weight: 200;
+           color: #FF6B35;
+           letter-spacing: 2px;
+           animation: letterFloat 0.8s ease forwards;
+           opacity: 0;
+           transform: translateY(20px);
+           text-shadow: 0 0 20px rgba(255, 107, 53, 0.6);
+       }
+
+       .loading-letter:nth-child(1) {
+           animation-delay: 0.3s;
+       }
+
+       .loading-letter:nth-child(2) {
+           animation-delay: 0.5s;
+       }
+
+       .loading-letter:nth-child(3) {
+           animation-delay: 0.7s;
+           animation: letterFloatSpin 1.2s ease forwards;
+       }
+
+       .loading-letter:nth-child(4) {
+           animation-delay: 0.9s;
+       }
+
+       .underline {
+           height: 2px;
+           background: linear-gradient(90deg, #FF6B35, #DC2626);
+           width: 0;
+           margin: 0 auto 20px;
+           animation: lineExpand 0.8s ease forwards;
+           animation-delay: 1.2s;
+       }
+
+       .tagline {
+           color: #666;
+           font-size: 14px;
+           letter-spacing: 1px;
+           opacity: 0;
+           animation: fadeIn 0.6s ease forwards;
+           animation-delay: 1.4s;
+           font-weight: 200;
+       }
+
+       /* Main Header */
+       .header {
+           padding: 24px 20px 20px 20px;
+           text-align: center;
+           background: linear-gradient(135deg, rgba(255, 107, 53, 0.05) 0%, rgba(220, 38, 38, 0.05) 100%);
+           border-bottom: 1px solid rgba(255, 107, 53, 0.1);
+       }
+
+       .main-title {
+           font-size: 32px;
+           font-weight: 200;
+           background: linear-gradient(135deg, #FF6B35, #DC2626);
+           -webkit-background-clip: text;
+           -webkit-text-fill-color: transparent;
+           background-clip: text;
+           letter-spacing: 8px;
+           margin: 0 0 12px 0;
+           text-transform: uppercase;
+       }
+
+       .subtitle-row {
+           display: flex;
+           align-items: center;
+           justify-content: center;
+           gap: 8px;
+           margin-bottom: 16px;
+       }
+
+       .subtitle {
+           font-size: 13px;
+           color: #888;
+           letter-spacing: 2px;
+           font-weight: 200;
+       }
+
+       .status {
+           padding: 8px 16px;
+           border-radius: 12px;
+           font-size: 11px;
+           font-weight: 200;
+           display: inline-flex;
+           align-items: center;
+           gap: 6px;
+           border: 1px solid rgba(255, 107, 53, 0.3);
+           background: rgba(255, 107, 53, 0.1);
+           color: #FF6B35;
+           transition: all 0.3s ease;
+           backdrop-filter: blur(10px);
+       }
+
+       .status.connected {
+           color: #00ff88;
+           border-color: rgba(0, 255, 136, 0.4);
+           background: rgba(0, 255, 136, 0.1);
+       }
+
+       .status.monitoring {
+           color: #FF6B35;
+           border-color: rgba(255, 107, 53, 0.5);
+           background: rgba(255, 107, 53, 0.15);
+           animation: statusPulse 2s infinite;
+       }
+
+       .status.disconnected {
+           color: #ff4444;
+           border-color: rgba(255, 68, 68, 0.4);
+           background: rgba(255, 68, 68, 0.1);
+       }
+
+       /* Controls Section */
+       .controls {
+           flex: 1;
+           padding: 24px 20px;
+           background: linear-gradient(180deg, transparent 0%, rgba(255, 107, 53, 0.02) 100%);
+           display: flex;
+           flex-direction: column;
+           justify-content: space-between;
+       }
+
+       .instruction-card {
+           background: linear-gradient(135deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 107, 53, 0.08) 100%);
+           border: 1px solid rgba(255, 107, 53, 0.2);
+           border-radius: 16px;
+           padding: 20px;
+           margin-bottom: 24px;
+           position: relative;
+           backdrop-filter: blur(20px);
+           box-shadow: 0 8px 32px rgba(255, 107, 53, 0.1);
+       }
+
+       .instruction-title {
+           font-weight: 200;
+           font-size: 16px;
+           margin-bottom: 16px;
+           color: #FF6B35;
+           text-align: center;
+           letter-spacing: 1px;
+       }
+
+       .instruction-steps {
+           font-size: 13px;
+           line-height: 1.6;
+           color: #ffffff;
+       }
+
+       .step {
+           display: flex;
+           align-items: flex-start;
+           margin-bottom: 12px;
+       }
+
+       .step:last-child {
+           margin-bottom: 0;
+       }
+
+       .step-number {
+           background: linear-gradient(135deg, #FF6B35, #DC2626);
+           color: #000;
+           border-radius: 50%;
+           width: 24px;
+           height: 24px;
+           display: flex;
+           align-items: center;
+           justify-content: center;
+           font-size: 11px;
+           font-weight: 600;
+           margin-right: 12px;
+           flex-shrink: 0;
+           margin-top: 2px;
+           box-shadow: 0 2px 8px rgba(255, 107, 53, 0.3);
+       }
+
+       .step-text {
+           flex: 1;
+           padding-top: 2px;
+           font-weight: 200;
+       }
+
+       /* Button Styling - FIXED VERSION */
+       .button-wrapper {
+           display: flex;
+           align-items: center;
+           justify-content: center;
+           margin-bottom: 20px;
+           position: relative;
+       }
+
+       .main-button {
+           background: linear-gradient(135deg, #FF6B35, #DC2626);
+           border: none;
+           outline: none;
+           color: #000000;
+           padding: 16px 28px;
+           border-radius: 16px;
+           font-weight: 300;
+           cursor: pointer;
+           font-size: 14px;
+           letter-spacing: 1px;
+           transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+           display: flex;
+           align-items: center;
+           gap: 10px;
+           min-width: 180px;
+           justify-content: center;
+           position: relative;
+           font-family: inherit;
+           -webkit-appearance: none;
+           -moz-appearance: none;
+           appearance: none;
+       }
+
+       .main-button:hover {
+           transform: translateY(-1px);
+           background: linear-gradient(135deg, #ff8555, #ff4444);
+       }
+
+       .main-button:active {
+           transform: translateY(0);
+           box-shadow: 0 8px 32px rgba(255, 107, 53, 0.3);
+       }
+
+       .main-button:focus {
+           box-shadow: 0 8px 32px rgba(255, 107, 53, 0.3), 0 0 0 2px rgba(255, 107, 53, 0.4);
+       }
+
+       .main-button.danger {
+           background: linear-gradient(135deg, #DC2626, #ff4444);
+           animation: recordingPulse 2s infinite;
+           color: #ffffff;
+       }
+
+       .main-button.danger:hover {
+           background: linear-gradient(135deg, #ff4444, #ff6666);
+           box-shadow: 0 12px 40px rgba(220, 38, 38, 0.5);
+       }
+
+       .main-button:disabled {
+           opacity: 0.5;
+           cursor: not-allowed;
+           transform: none;
+           box-shadow: 0 8px 32px rgba(255, 107, 53, 0.2);
+       }
+
+       /* Secondary Button - FIXED VERSION */
+       .secondary-button {
+           background: rgba(255, 255, 255, 0.03);
+           border: 1px solid rgba(255, 107, 53, 0.3);
+           outline: none;
+           color: #FF6B35;
+           padding: 12px 20px;
+           border-radius: 12px;
+           font-weight: 200;
+           cursor: pointer;
+           font-size: 13px;
+           letter-spacing: 0.5px;
+           transition: all 0.3s ease;
+           text-align: center;
+           margin-bottom: 16px;
+           backdrop-filter: blur(10px);
+           font-family: inherit;
+           width: 100%;
+           -webkit-appearance: none;
+           -moz-appearance: none;
+           appearance: none;
+       }
+
+       .secondary-button:hover {
+           background: rgba(255, 107, 53, 0.1);
+           border-color: #FF6B35;
+           transform: translateY(-1px);
+           box-shadow: 0 4px 16px rgba(255, 107, 53, 0.2);
+       }
+
+       .secondary-button:focus {
+           box-shadow: 0 4px 16px rgba(255, 107, 53, 0.2), 0 0 0 2px rgba(255, 107, 53, 0.3);
+       }
+
+       /* History Page */
+       .back-header {
+           padding: 20px;
+           background: linear-gradient(135deg, rgba(255, 107, 53, 0.05) 0%, rgba(220, 38, 38, 0.05) 100%);
+           border-bottom: 1px solid rgba(255, 107, 53, 0.2);
+           display: flex;
+           align-items: center;
+           gap: 12px;
+       }
+
+       .back-button {
+           background: rgba(255, 107, 53, 0.1);
+           border: 1px solid rgba(255, 107, 53, 0.3);
+           outline: none;
+           color: #FF6B35;
+           width: 36px;
+           height: 36px;
+           border-radius: 10px;
+           cursor: pointer;
+           display: flex;
+           align-items: center;
+           justify-content: center;
+           font-size: 16px;
+           transition: all 0.3s ease;
+           backdrop-filter: blur(10px);
+           font-family: inherit;
+           -webkit-appearance: none;
+           -moz-appearance: none;
+           appearance: none;
+       }
+
+       .back-button:hover {
+           background: rgba(255, 107, 53, 0.2);
+           color: #ffffff;
+           transform: translateX(-2px);
+       }
+
+       .back-button:focus {
+           box-shadow: 0 0 0 2px rgba(255, 107, 53, 0.3);
+       }
+
+       .back-title {
+           font-size: 18px;
+           font-weight: 200;
+           color: #ffffff;
+           margin: 0;
+           letter-spacing: 1px;
+       }
+
+       .history-content {
+           flex: 1;
+           overflow: hidden;
+           display: flex;
+           flex-direction: column;
+       }
+
+       .history-controls {
+           padding: 16px 20px;
+           background: rgba(255, 107, 53, 0.02);
+           border-bottom: 1px solid rgba(255, 107, 53, 0.1);
+       }
+
+       .clear-button {
+           width: 100%;
+           background: rgba(220, 38, 38, 0.1);
+           border: 1px solid rgba(220, 38, 38, 0.3);
+           outline: none;
+           color: #ff4444;
+           padding: 12px 16px;
+           border-radius: 10px;
+           font-weight: 200;
+           cursor: pointer;
+           font-size: 12px;
+           letter-spacing: 0.5px;
+           transition: all 0.3s ease;
+           backdrop-filter: blur(10px);
+           font-family: inherit;
+           -webkit-appearance: none;
+           -moz-appearance: none;
+           appearance: none;
+       }
+
+       .clear-button:hover {
+           background: rgba(220, 38, 38, 0.2);
+           color: #ff6666;
+           transform: translateY(-1px);
+       }
+
+       .clear-button:focus {
+           box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.3);
+       }
+
+       .stats-card {
+           background: linear-gradient(135deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 107, 53, 0.08) 100%);
+           border: 1px solid rgba(255, 107, 53, 0.2);
+           border-radius: 12px;
+           padding: 12px;
+           margin: 0 20px 12px 20px;
+           backdrop-filter: blur(20px);
+           box-shadow: 0 8px 32px rgba(255, 107, 53, 0.1);
+       }
+
+       .stats-title {
+           margin: 0 0 8px 0;
+           font-size: 14px;
+           font-weight: 200;
+           text-align: center;
+           color: #FF6B35;
+           letter-spacing: 1px;
+       }
+
+       .stats-grid {
+           display: grid;
+           grid-template-columns: 1fr 1fr;
+           gap: 8px;
+       }
+
+       .stat-item {
+           text-align: center;
+           padding: 10px 6px;
+           background: rgba(0, 0, 0, 0.3);
+           border: 1px solid rgba(255, 107, 53, 0.2);
+           border-radius: 8px;
+           backdrop-filter: blur(10px);
+           transition: all 0.3s ease;
+       }
+
+       .stat-number {
+           font-size: 18px;
+           font-weight: 200;
+           display: block;
+           color: #ffffff;
+           margin-bottom: 2px;
+       }
+
+       .stat-label {
+           font-size: 9px;
+           opacity: 0.8;
+           letter-spacing: 0.5px;
+           font-weight: 200;
+           color: #FF6B35;
+           text-transform: uppercase;
+       }
+
+       .detections-section {
+           flex: 1;
+           padding: 0 20px 20px 20px;
+           background: linear-gradient(180deg, transparent 0%, rgba(255, 107, 53, 0.02) 100%);
+           overflow: hidden;
+           display: flex;
+           flex-direction: column;
+       }
+
+       .detections-title {
+           margin: 0 0 16px 0;
+           font-size: 16px;
+           font-weight: 200;
+           text-align: center;
+           color: #FF6B35;
+           letter-spacing: 1px;
+       }
+
+       .detection-list {
+           flex: 1;
+           overflow-y: auto;
+       }
+
+       .detection-item {
+           background: linear-gradient(135deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 107, 53, 0.05) 100%);
+           border: 1px solid rgba(255, 107, 53, 0.2);
+           border-radius: 12px;
+           padding: 16px;
+           margin-bottom: 12px;
+           transition: all 0.3s ease;
+           backdrop-filter: blur(20px);
+       }
+
+       .detection-item.fake {
+           border-color: rgba(220, 38, 38, 0.5);
+           background: linear-gradient(135deg, rgba(220, 38, 38, 0.08) 0%, rgba(255, 68, 68, 0.05) 100%);
+       }
+
+       .detection-item.real {
+           border-color: rgba(0, 255, 136, 0.5);
+           background: linear-gradient(135deg, rgba(0, 255, 136, 0.08) 0%, rgba(0, 200, 100, 0.05) 100%);
+       }
+
+       .detection-item:last-child {
+           margin-bottom: 0;
+       }
+
+       .detection-item:hover {
+           transform: translateY(-2px);
+           box-shadow: 0 8px 32px rgba(255, 107, 53, 0.15);
+       }
+
+       .detection-list::-webkit-scrollbar {
+           width: 4px;
+       }
+
+       .detection-list::-webkit-scrollbar-track {
+           background: rgba(255, 255, 255, 0.05);
+           border-radius: 2px;
+       }
+
+       .detection-list::-webkit-scrollbar-thumb {
+           background: linear-gradient(180deg, #FF6B35, #DC2626);
+           border-radius: 2px;
+       }
+
+       .detection-list::-webkit-scrollbar-thumb:hover {
+           background: linear-gradient(180deg, #ff8855, #ff4444);
+       }
+
+       .empty-state {
+           text-align: center;
+           color: #666666;
+           font-size: 13px;
+           padding: 32px 16px;
+           line-height: 1.6;
+           font-weight: 200;
+       }
+
+       .detection-header {
+           display: flex;
+           justify-content: space-between;
+           align-items: center;
+           margin-bottom: 8px;
+       }
+
+       .detection-time {
+           font-size: 11px;
+           opacity: 0.7;
+           font-weight: 200;
+           color: #FF6B35;
+       }
+
+       .detection-confidence {
+           background: rgba(255, 107, 53, 0.15);
+           border: 1px solid rgba(255, 107, 53, 0.3);
+           color: #ffffff;
+           padding: 4px 10px;
+           border-radius: 10px;
+           font-size: 10px;
+           font-weight: 500;
+           letter-spacing: 0.3px;
+           backdrop-filter: blur(10px);
+       }
+
+       .detection-result {
+           font-weight: 200;
+           font-size: 13px;
+           margin-bottom: 4px;
+           color: #ffffff;
+           letter-spacing: 0.5px;
+       }
+
+       .detection-source {
+           font-size: 11px;
+           opacity: 0.7;
+           font-weight: 200;
+           color: #FF6B35;
+       }
+
+       .accent-text {
+           color: #ff4444;
+       }
+
+       /* Icons */
+       .icon {
+           width: 16px;
+           height: 16px;
+           stroke: currentColor;
+           stroke-width: 1.5;
+           fill: none;
+       }
+
+       .icon-large {
+           width: 20px;
+           height: 20px;
+           margin-top: 1px;
+       }
+
+       /* Loading Spinner */
+       .loading {
+           display: inline-block;
+           width: 12px;
+           height: 12px;
+           border: 2px solid #FF6B35;
+           border-radius: 50%;
+           border-top-color: #DC2626;
+           animation: spin 1s ease-in-out infinite;
+       }
+
+       /* Animations */
+       @keyframes rotate {
+           0% {
+               transform: rotate(0deg);
+           }
+
+           100% {
+               transform: rotate(360deg);
+           }
+       }
+
+       @keyframes rotateReverse {
+           0% {
+               transform: rotate(0deg);
+           }
+
+           100% {
+               transform: rotate(-360deg);
+           }
+       }
+
+       @keyframes glow {
+           0% {
+               filter: drop-shadow(0 0 15px rgba(255, 107, 53, 0.6));
+           }
+
+           100% {
+               filter: drop-shadow(0 0 25px rgba(255, 107, 53, 1));
+           }
+       }
+
+       @keyframes letterFloat {
+           to {
+               opacity: 1;
+               transform: translateY(0);
+           }
+       }
+
+       @keyframes letterFloatSpin {
+           0% {
+               opacity: 0;
+               transform: translateY(20px) rotate(0deg) scale(0.5);
+           }
+
+           50% {
+               opacity: 1;
+               transform: translateY(0) rotate(360deg) scale(1.3);
+           }
+
+           100% {
+               opacity: 1;
+               transform: translateY(0) rotate(720deg) scale(1);
+           }
+       }
+
+       @keyframes lineExpand {
+           to {
+               width: 120px;
+           }
+       }
+
+       @keyframes fadeIn {
+           to {
+               opacity: 1;
+           }
+       }
+
+       @keyframes recordingPulse {
+
+           0%,
+           100% {
+               opacity: 1;
+           }
+
+           50% {
+               opacity: 0.8;
+           }
+       }
+
+       @keyframes statusPulse {
+
+           0%,
+           100% {
+               opacity: 1;
+               transform: scale(1);
+           }
+
+           50% {
+               opacity: 0.8;
+               transform: scale(1.02);
+           }
+       }
+
+       @keyframes spin {
+           to {
+               transform: rotate(360deg);
+           }
+       }
+
+       /* Smooth transitions */
+       .page {
+           transition: none;
+       }
+
+       /* Enhanced focus states */
+       button:focus-visible {
+           outline: 2px solid #FF6B35;
+           outline-offset: 2px;
+       }
+
+       /* Selection styling */
+       ::selection {
+           background-color: rgba(255, 107, 53, 0.3);
+           color: #ffffff;
+       }
+   </style>
 </head>
+
 <body>
-    <!-- Loading Screen -->
-    <div id="loadingScreen" class="loading-screen">
-        <div class="shield-container">
-            <div class="shield-outer-ring">
-                <div class="shield-inner-ring">
-                    <svg class="shield-svg" viewBox="0 0 24 24">
-                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-                    </svg>
+   <!-- Loading Screen -->
+   <div id="loadingScreen" class="loading-screen">
+       <div class="shield-container">
+           <div class="shield-outer-ring">
+               <div class="shield-inner-ring">
+                   <svg class="shield-svg" viewBox="0 0 24 24">
+                       <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                   </svg>
+               </div>
+           </div>
+       </div>
+       <div class="letter-container">
+           <div class="loading-letter">L</div>
+           <div class="loading-letter">I</div>
+           <div class="loading-letter">O</div>
+           <div class="loading-letter">N</div>
+       </div>
+       <div class="underline"></div>
+       <div class="tagline">AI Audio Detection</div>
+   </div>
+
+   <!-- Main Page -->
+   <div id="mainPage" class="page active">
+       <div class="header">
+           <h1 class="main-title">LION</h1>
+           <div class="subtitle-row">
+               <svg class="icon" viewBox="0 0 24 24">
+                   <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+               </svg>
+               <span class="subtitle">AI Audio Detection</span>
+           </div>
+           <div id="status" class="status connected">
+               <svg class="icon" viewBox="0 0 24 24" style="width: 14px; height: 14px;">
+                   <path d="m9 12 2 2 4-4" />
+                   <circle cx="12" cy="12" r="9" />
+               </svg>
+               Ready
+           </div>
+       </div>
+
+       <div class="controls">
+           <div class="instruction-card">
+               <div class="instruction-title">Setup Instructions</div>
+               <div class="instruction-steps">
+                   <div class="step">
+                       <div class="step-number">1</div>
+                       <div class="step-text">Click <strong>"Start Detection"</strong></div>
+                   </div>
+                   <div class="step">
+                       <div class="step-number">2</div>
+                       <div class="step-text">Select <strong>"Entire screen"</strong></div>
+                   </div>
+                   <div class="step">
+                       <div class="step-number">3</div>
+                       <div class="step-text">Check <strong>"Share system audio"</strong></div>
+                   </div>
+                   <div class="step">
+                       <div class="step-number">4</div>
+                       <div class="step-text">Click "Share"</div>
+                   </div>
+               </div>
+           </div>
+
+           <div class="button-wrapper">
+               <button id="toggleBtn" class="main-button">
+                   <svg class="icon icon-large" viewBox="0 0 24 24">
+                       <path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z" />
+                       <path d="M19 10v2a7 7 0 01-14 0v-2" />
+                       <line x1="12" y1="19" x2="12" y2="23" />
+                       <line x1="8" y1="23" x2="16" y2="23" />
+                   </svg>
+                   <span>Start Detection</span>
+               </button>
+           </div>
+
+           <button id="historyBtn" class="secondary-button">View Detection History</button>
+       </div>
+   </div>
+
+   <!-- History Page -->
+   <div id="historyPage" class="page">
+       <div class="back-header">
+           <button id="backBtn" class="back-button">←</button>
+           <h2 class="back-title">Detection History</h2>
+       </div>
+
+       <div class="history-content">
+           <div class="history-controls">
+               <button id="clearBtn" class="clear-button">Clear All History</button>
+           </div>
+
+           <div class="stats-card">
+               <h3 class="stats-title">Statistics</h3>
+               <div class="stats-grid">
+                   <div class="stat-item">
+                       <span class="stat-number" id="totalDetections">0</span>
+                       <span class="stat-label">Total</span>
+                   </div>
+                   <div class="stat-item">
+                       <span class="stat-number accent-text" id="fakeDetections">0</span>
+                       <span class="stat-label">AI Voices</span>
+                   </div>
+                   <div class="stat-item">
+                       <span class="stat-number" id="realDetections">0</span>
+                       <span class="stat-label">Real Voices</span>
+                   </div>
+                   <div class="stat-item">
+                       <span class="stat-number" id="suspiciousDetections">0</span>
+                       <span class="stat-label">Alerts</span>
+                   </div>
+               </div>
+           </div>
+
+           <div class="detections-section">
+               <h3 class="detections-title">Recent Detections</h3>
+               <div id="detectionList" class="detection-list">
+                <div class="empty-state">
+                    <svg class="icon" viewBox="0 0 24 24"
+                        style="width: 32px; height: 32px; margin-bottom: 12px; stroke: #666;">
+                        <path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z" />
+                        <path d="M19 10v2a7 7 0 01-14 0v-2" />
+                        <line x1="12" y1="19" x2="12" y2="23" />
+                        <line x1="8" y1="23" x2="16" y2="23" />
+                    </svg><br>
+                    No detections yet.<br>
+                    Start monitoring to see results!
                 </div>
             </div>
         </div>
-        <div class="letter-container">
-            <div class="loading-letter">L</div>
-            <div class="loading-letter">I</div>
-            <div class="loading-letter">O</div>
-            <div class="loading-letter">N</div>
-        </div>
-        <div class="underline"></div>
-        <div class="tagline">AI Audio Detection</div>
     </div>
+</div>
 
-    <!-- Main Page -->
-    <div id="mainPage" class="page active">
-        <div class="header">
-            <h1 class="main-title">LION</h1>
-            <div class="subtitle-row">
-                <svg class="icon" viewBox="0 0 24 24">
-                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-                </svg>
-                <span class="subtitle">AI Audio Detection</span>
-            </div>
-            <div id="status" class="status connected">
-                <svg class="icon" viewBox="0 0 24 24" style="width: 14px; height: 14px;">
-                    <path d="m9 12 2 2 4-4"/>
-                    <circle cx="12" cy="12" r="9"/>
-                </svg>
-                Ready
-            </div>
-        </div>
-
-        <div class="controls">
-            <div class="instruction-card">
-                <div class="instruction-title">Setup Instructions</div>
-                <div class="instruction-steps">
-                    <div class="step">
-                        <div class="step-number">1</div>
-                        <div class="step-text">Click <strong>"Start Detection"</strong></div>
-                    </div>
-                    <div class="step">
-                        <div class="step-number">2</div>
-                        <div class="step-text">Select <strong>"Entire screen"</strong></div>
-                    </div>
-                    <div class="step">
-                        <div class="step-number">3</div>
-                        <div class="step-text">Check <strong>"Share system audio"</strong></div>
-                    </div>
-                    <div class="step">
-                        <div class="step-number">4</div>
-                        <div class="step-text">Click "Share"</div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="button-wrapper">
-                <button id="toggleBtn" class="main-button">
-                    <svg class="icon icon-large" viewBox="0 0 24 24">
-                        <path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/>
-                        <path d="M19 10v2a7 7 0 01-14 0v-2"/>
-                        <line x1="12" y1="19" x2="12" y2="23"/>
-                        <line x1="8" y1="23" x2="16" y2="23"/>
-                    </svg>
-                    <span>Start Detection</span>
-                </button>
-            </div>
-
-            <button id="historyBtn" class="secondary-button">View Detection History</button>
-        </div>
-    </div>
-
-    <!-- History Page -->
-    <div id="historyPage" class="page">
-        <div class="back-header">
-            <button id="backBtn" class="back-button">←</button>
-            <h2 class="back-title">Detection History</h2>
-        </div>
-
-        <div class="history-content">
-            <div class="history-controls">
-                <button id="clearBtn" class="clear-button">Clear All History</button>
-            </div>
-
-            <div class="stats-card">
-                <h3 class="stats-title">Statistics</h3>
-                <div class="stats-grid">
-                    <div class="stat-item">
-                        <span class="stat-number" id="totalDetections">0</span>
-                        <span class="stat-label">Total</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-number accent-text" id="fakeDetections">0</span>
-                        <span class="stat-label">AI Voices</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-number" id="realDetections">0</span>
-                        <span class="stat-label">Real Voices</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-number" id="suspiciousDetections">0</span>
-                        <span class="stat-label">Alerts</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="detections-section">
-                <h3 class="detections-title">Recent Detections</h3>
-                <div id="detectionList" class="detection-list">
-                    <div class="empty-state">
-                        <svg class="icon" viewBox="0 0 24 24" style="width: 32px; height: 32px; margin-bottom: 12px; stroke: #666;">
-                            <path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/>
-                            <path d="M19 10v2a7 7 0 01-14 0v-2"/>
-                            <line x1="12" y1="19" x2="12" y2="23"/>
-                            <line x1="8" y1="23" x2="16" y2="23"/>
-                        </svg><br>
-                        No detections yet.<br>
-                        Start monitoring to see results!
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <script src="popup.js"></script>
+<script src="popup.js"></script>
 </body>
+
 </html>
