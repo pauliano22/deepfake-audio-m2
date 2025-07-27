@@ -20,6 +20,7 @@
            color: #ffffff;
            font-size: 14px;
            font-weight: 200;
+           letter-spacing: 2px;
            line-height: 1.5;
            overflow: hidden;
            -webkit-font-smoothing: antialiased;
@@ -233,7 +234,7 @@
 
        .instruction-card {
            background: black;
-           border: 1px solid rgba(255, 107, 53, 0.3);
+           border: 1px solid white;
            border-radius: 16px;
            padding: 20px;
            margin-bottom: 24px;
@@ -246,7 +247,7 @@
            font-weight: 200;
            font-size: 16px;
            margin-bottom: 16px;
-           color: #FF6B35;
+           color: white;
            text-align: center;
            letter-spacing: 1px;
        }
@@ -268,7 +269,7 @@
        }
 
        .step-number {
-           background: linear-gradient(135deg, #FF6B35, #DC2626);
+           background: white;
            color: #000;
            border-radius: 50%;
            width: 24px;
@@ -288,6 +289,7 @@
            flex: 1;
            padding-top: 2px;
            font-weight: 200;
+           letter-spacing: 1px;
        }
 
        /* Button Styling - FIXED VERSION */
@@ -306,10 +308,10 @@
            color: #000000;
            padding: 12px 20px;
            border-radius: 12px;
-           font-weight: 300;
+           font-weight: 600;
            cursor: pointer;
            font-size: 14px;
-           letter-spacing: 0.5px;
+           letter-spacing: 2px;
            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
            display: flex;
            align-items: center;
@@ -353,16 +355,16 @@
        }
 
        .secondary-button {
-           background: rgba(255, 255, 255, 0.03);
-           border: 1px solid rgba(255, 107, 53, 0.3);
+           background: black;
+           border: 1px solid white;
            outline: none;
-           color: #FF6B35;
+           color: white;
            padding: 12px 20px;
            border-radius: 12px;
            font-weight: 300;
            cursor: pointer;
            font-size: 14px;
-           letter-spacing: 0.5px;
+           letter-spacing: 2px;
            transition: all 0.3s ease;
            text-align: center;
            margin-bottom: 12px;
@@ -375,14 +377,11 @@
        }
 
        .secondary-button:hover {
-           background: rgba(255, 107, 53, 0.1);
-           border-color: #FF6B35;
+           background: white;
+           border-color: white;
+           color: black;
            transform: translateY(-1px);
            box-shadow: 0 4px 16px rgba(255, 107, 53, 0.2);
-       }
-
-       .secondary-button:focus {
-           box-shadow: 0 0 0 2px rgba(255, 107, 53, 0.3);
        }
 
        /* History Page */
@@ -396,10 +395,10 @@
        }
 
        .back-button {
-           background: rgba(255, 107, 53, 0.1);
-           border: 1px solid rgba(255, 107, 53, 0.3);
+           background: black;
+           border: 1px solid white;
            outline: none;
-           color: #FF6B35;
+           color: white;
            width: 36px;
            height: 36px;
            border-radius: 10px;
@@ -417,8 +416,8 @@
        }
 
        .back-button:hover {
-           background: rgba(255, 107, 53, 0.2);
-           color: #ffffff;
+           background: white;
+           color: black;
            transform: translateX(-2px);
        }
 
@@ -444,21 +443,21 @@
        .history-controls {
            padding: 16px 20px;
            background: #000000;
-           border-bottom: 1px solid rgba(255, 107, 53, 0.1);
+           border-bottom: 1px solid white;
        }
 
        .clear-button {
            width: 100%;
            background: black;
-           border: 1px solid rgba(220, 38, 38, 0.3);
+           border: 1px solid white;
            outline: none;
-           color: #ff4444;
+           color: white;
            padding: 12px 16px;
            border-radius: 10px;
            font-weight: 200;
            cursor: pointer;
            font-size: 12px;
-           letter-spacing: 0.5px;
+           letter-spacing: 2px;
            transition: all 0.3s ease;
            backdrop-filter: blur(10px);
            font-family: inherit;
@@ -469,8 +468,9 @@
 
        .clear-button:hover {
            background: rgba(220, 38, 38, 0.2);
-           color: #ff6666;
+           color: white;
            transform: translateY(-1px);
+           border: 1px solid rgba(220, 38, 38, 0.6);
        }
 
        .clear-button:focus {
@@ -479,21 +479,19 @@
 
        .stats-card {
            background: black;
-           border: 2px solid rgba(255, 107, 53, 0.4);
            border-radius: 12px;
            padding: 12px;
            margin: 0 20px 12px 20px;
            backdrop-filter: blur(20px);
-           box-shadow: 0 12px 40px rgba(255, 107, 53, 0.2);
        }
 
        .stats-title {
            margin: 0 0 8px 0;
-           font-size: 14px;
+           font-size: 16px;
            font-weight: 200;
            text-align: center;
-           color: #FF6B35;
-           letter-spacing: 1px;
+           color: white;
+           letter-spacing: 2px;
        }
 
        .stats-grid {
@@ -506,7 +504,7 @@
            text-align: center;
            padding: 10px 6px;
            background: rgba(0, 0, 0, 0.6);
-           border: 2px solid rgba(255, 107, 53, 0.3);
+           border: 1px solid white;
            border-radius: 8px;
            backdrop-filter: blur(10px);
            transition: all 0.3s ease;
@@ -528,11 +526,11 @@
        }
 
        .stat-label {
-           font-size: 9px;
+           font-size: 14px;
            opacity: 0.8;
-           letter-spacing: 0.5px;
+           letter-spacing: 2px;
            font-weight: 200;
-           color: #FF6B35;
+           color: white;
            text-transform: uppercase;
        }
 
@@ -550,8 +548,8 @@
            font-size: 16px;
            font-weight: 200;
            text-align: center;
-           color: #FF6B35;
-           letter-spacing: 1px;
+           color: white;
+           letter-spacing: 2px;
        }
 
        .detection-list {
@@ -637,7 +635,7 @@
            border-radius: 10px;
            font-size: 10px;
            font-weight: 500;
-           letter-spacing: 0.3px;
+           letter-spacing: 2px;
            backdrop-filter: blur(10px);
        }
 
@@ -646,7 +644,7 @@
            font-size: 13px;
            margin-bottom: 4px;
            color: #ffffff;
-           letter-spacing: 0.5px;
+           letter-spacing: 2px;
        }
 
        .detection-source {
@@ -905,11 +903,11 @@
                    </div>
                    <div class="stat-item">
                        <span class="stat-number accent-text" id="fakeDetections">0</span>
-                       <span class="stat-label">AI Voices</span>
+                       <span class="stat-label">AI</span>
                    </div>
                    <div class="stat-item">
                        <span class="stat-number" id="realDetections">0</span>
-                       <span class="stat-label">Real Voices</span>
+                       <span class="stat-label">Real</span>
                    </div>
                    <div class="stat-item">
                        <span class="stat-number" id="suspiciousDetections">0</span>
