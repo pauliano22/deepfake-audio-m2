@@ -1,9 +1,9 @@
-// background.js - Pure JavaScript version
-console.log('🎤 AI Voice Detector background service worker loaded - Pure JS');
+// background.js - Enhanced for voice and text detection
+console.log('🎤 AI Voice + Text Detector background service worker loaded');
 
 // Handle extension installation
 chrome.runtime.onInstalled.addListener(() => {
-    console.log('✅ AI Voice Detector extension installed successfully');
+    console.log('✅ AI Voice + Text Detector extension installed successfully');
 });
 
 // Handle notifications from content script
@@ -12,10 +12,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     
     if (message.type === 'showNotification') {
         try {
-            chrome.notifications.create('deepfake-' + Date.now(), {
+            chrome.notifications.create('ai-detection-' + Date.now(), {
                 type: 'basic',
                 iconUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
-                title: '🚨 Deepfake Detected!',
+                title: message.title || '🚨 AI Content Detected!',
                 message: message.message
             });
         } catch (error) {
@@ -25,6 +25,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     
     if (message.type === 'detectionResult') {
         console.log('Detection result received:', message.result);
+    }
+    
+    if (message.type === 'streamingDetectionResult') {
+        console.log('Streaming detection result:', message.result);
+    }
+    
+    if (message.type === 'textDetectionResult') {
+        console.log('Text detection result:', message.result);
     }
     
     sendResponse({ received: true });

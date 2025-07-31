@@ -1,17 +1,25 @@
-// content.js - Updated with Lion Project styling
+// content.js - Enhanced with text AI detection
 if (window.aiVoiceDetectorInjected) {
     console.log('🔄 AI Voice Detector already injected, skipping...');
     throw new Error('Already injected');
 } else {
     window.aiVoiceDetectorInjected = true;
-    console.log('🎤 AI Voice Detector - Lion Project Styled');
+    console.log('🎤 AI Voice Detector + Text Detection - Lion Project Styled');
 
+    // Voice detection variables (existing)
     let isMonitoring = false;
     let audioContext;
     let mediaStream = null;
     let audioWorkletNode = null;
     let scriptProcessor = null;
     let streamingInterval = null;
+    
+    // Text detection variables (new)
+    let textDetectionEnabled = true;
+    let currentHoverTimeout = null;
+    let activeTooltip = null;
+    let detectionCache = new Map();
+    let lastHoveredElement = null;
     
     // Detect Mac/Safari
     const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
@@ -51,14 +59,383 @@ if (window.aiVoiceDetectorInjected) {
 
     const HF_API_URL = 'https://pauliano22-deepfake-audio-detector.hf.space/gradio_api';
 
-    // Inject custom styles once
+    // TEXT DETECTION FUNCTIONALITY (NEW)
+    
+    // Initialize text detection
+    function initializeTextDetection() {
+        console.log('🔤 Initializing text AI detection...');
+        
+        // Add hover listeners to text elements
+        document.addEventListener('mouseover', handleTextHover, true);
+        document.addEventListener('mouseout', handleTextMouseOut, true);
+    }
+    
+    function handleTextHover(event) {
+        if (!textDetectionEnabled) return;
+        
+        const element = event.target;
+        
+        // Check if element contains substantial text
+        if (!isTextElement(element)) return;
+        
+        const text = getElementText(element);
+        if (!text || text.length < 50) return; // Minimum text length
+        
+        lastHoveredElement = element;
+        
+        // Clear existing timeout
+        if (currentHoverTimeout) {
+            clearTimeout(currentHoverTimeout);
+        }
+        
+        // Set delay before showing detection
+        currentHoverTimeout = setTimeout(() => {
+            if (lastHoveredElement === element) {
+                detectTextAI(text, element);
+            }
+        }, 500); // 500ms hover delay
+    }
+    
+    function handleTextMouseOut(event) {
+        if (currentHoverTimeout) {
+            clearTimeout(currentHoverTimeout);
+            currentHoverTimeout = null;
+        }
+        
+        // Hide tooltip after a short delay
+        setTimeout(() => {
+            if (activeTooltip && !activeTooltip.matches(':hover')) {
+                hideTooltip();
+            }
+        }, 200);
+    }
+    
+    function isTextElement(element) {
+        const textTags = ['P', 'DIV', 'SPAN', 'ARTICLE', 'SECTION', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6'];
+        
+        // Check if element is a text container
+        if (textTags.includes(element.tagName)) {
+            return true;
+        }
+        
+        // Check if element has text content and is not an input/button
+        const excludeTags = ['INPUT', 'BUTTON', 'SELECT', 'TEXTAREA', 'A'];
+        if (excludeTags.includes(element.tagName)) {
+            return false;
+        }
+        
+        return element.textContent && element.textContent.trim().length > 0;
+    }
+    
+    function getElementText(element) {
+        // Get clean text content
+        let text = element.textContent || element.innerText || '';
+        
+        // Clean up text
+        text = text.trim();
+        text = text.replace(/\s+/g, ' '); // Normalize whitespace
+        text = text.replace(/[\n\r\t]/g, ' '); // Remove line breaks and tabs
+        
+        // Limit text length for API efficiency
+        if (text.length > 1000) {
+            text = text.substring(0, 1000) + '...';
+        }
+        
+        return text;
+    }
+    
+    async function detectTextAI(text, element) {
+        try {
+            // Check cache first
+            const cacheKey = hashText(text);
+            if (detectionCache.has(cacheKey)) {
+                const cachedResult = detectionCache.get(cacheKey);
+                showTextDetectionTooltip(element, cachedResult);
+                return;
+            }
+            
+            // Show loading tooltip
+            showLoadingTooltip(element);
+            
+            // Call AI detection
+            const result = await performHeuristicDetection(text);
+            
+            // Cache result
+            detectionCache.set(cacheKey, result);
+            
+            // Clean cache if it gets too large
+            if (detectionCache.size > 100) {
+                const firstKey = detectionCache.keys().next().value;
+                detectionCache.delete(firstKey);
+            }
+            
+            // Show result
+            showTextDetectionTooltip(element, result);
+            
+        } catch (error) {
+            console.error('Text detection error:', error);
+            showErrorTooltip(element, 'Detection failed');
+        }
+    }
+    
+    function performHeuristicDetection(text) {
+        console.log('🔍 Using heuristic AI text detection...');
+        
+        let aiScore = 0;
+        let indicators = [];
+        const maxScore = 1.0;
+
+        // 1. Check for AI-typical phrases
+        const aiPhrases = [
+            /as an ai/i,
+            /i don't have personal/i,
+            /i cannot provide/i,
+            /i'm not able to/i,
+            /it's important to note/i,
+            /however, it's worth mentioning/i,
+            /in summary/i,
+            /to conclude/i,
+            /furthermore/i,
+            /moreover/i,
+            /additionally/i,
+            /on the other hand/i,
+            /it's worth noting/i,
+            /please note that/i
+        ];
+
+        let phraseMatches = 0;
+        aiPhrases.forEach(pattern => {
+            if (pattern.test(text)) {
+                phraseMatches++;
+            }
+        });
+
+        if (phraseMatches > 0) {
+            const phraseScore = Math.min(phraseMatches * 0.15, 0.4);
+            aiScore += phraseScore;
+            indicators.push(`AI-typical phrases detected (${phraseMatches})`);
+        }
+
+        // 2. Check sentence structure uniformity
+        const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 10);
+        if (sentences.length >= 3) {
+            const lengths = sentences.map(s => s.trim().length);
+            const avgLength = lengths.reduce((sum, len) => sum + len, 0) / lengths.length;
+            const variance = lengths.reduce((sum, len) => sum + Math.pow(len - avgLength, 2), 0) / lengths.length;
+            const coefficientOfVariation = Math.sqrt(variance) / avgLength;
+
+            // Very uniform sentence lengths suggest AI
+            if (coefficientOfVariation < 0.3) {
+                aiScore += 0.2;
+                indicators.push('Uniform sentence structure');
+            }
+        }
+
+        // 3. Check for repetitive patterns and word choice
+        const words = text.toLowerCase().match(/\b\w+\b/g) || [];
+        const uniqueWords = new Set(words);
+        const vocabularyRichness = uniqueWords.size / words.length;
+
+        // AI tends to have less vocabulary richness
+        if (vocabularyRichness < 0.4 && words.length > 50) {
+            aiScore += 0.15;
+            indicators.push('Limited vocabulary diversity');
+        }
+
+        // 4. Check for overly formal/structured writing
+        const formalIndicators = [
+            /\b(thus|hence|therefore|consequently)\b/gi,
+            /\b(utilize|implement|facilitate|demonstrate)\b/gi,
+            /\b(comprehensive|extensive|significant|substantial)\b/gi
+        ];
+
+        let formalityScore = 0;
+        formalIndicators.forEach(pattern => {
+            const matches = text.match(pattern);
+            if (matches) {
+                formalityScore += matches.length;
+            }
+        });
+
+        if (formalityScore > 2) {
+            aiScore += Math.min(formalityScore * 0.05, 0.2);
+            indicators.push('Overly formal language patterns');
+        }
+
+        // 5. Check for lack of personal opinions/experiences
+        const personalIndicators = [
+            /\b(i think|i believe|in my opinion|personally|i feel)\b/gi,
+            /\b(my experience|i remember|i once|when i)\b/gi
+        ];
+
+        let personalityScore = 0;
+        personalIndicators.forEach(pattern => {
+            const matches = text.match(pattern);
+            if (matches) {
+                personalityScore += matches.length;
+            }
+        });
+
+        // Lack of personal touches suggests AI
+        if (personalityScore === 0 && text.length > 200) {
+            aiScore += 0.1;
+            indicators.push('Lack of personal voice');
+        }
+
+        // Normalize score
+        aiScore = Math.min(aiScore, maxScore);
+        const confidence = aiScore;
+        const prediction = aiScore > 0.5 ? 'AI' : 'HUMAN';
+
+        // Store detection for history
+        const result = {
+            prediction,
+            confidence,
+            reasoning: indicators.length > 0 ? indicators.join(', ') : 'No strong AI indicators found',
+            source: 'heuristic',
+            timestamp: new Date().toISOString(),
+            url: window.location.href,
+            textPreview: text.substring(0, 100)
+        };
+
+        // Save to storage for history
+        saveTextDetection(result);
+
+        return result;
+    }
+
+    function saveTextDetection(result) {
+        try {
+            chrome.storage.local.get(['textDetections'], (data) => {
+                const detections = data.textDetections || [];
+                detections.push(result);
+
+                // Keep only last 50 text detections
+                if (detections.length > 50) {
+                    detections.splice(0, detections.length - 50);
+                }
+
+                chrome.storage.local.set({ textDetections: detections });
+            });
+        } catch (error) {
+            console.log('Could not save text detection:', error);
+        }
+    }
+    
+    function showLoadingTooltip(element) {
+        hideTooltip();
+        
+        const tooltip = createTooltip();
+        tooltip.innerHTML = `
+            <div class="lion-tooltip-content">
+                <div class="lion-tooltip-header loading">
+                    <div class="loading-spinner"></div>
+                    <span>Analyzing text...</span>
+                </div>
+            </div>
+        `;
+        
+        positionTooltip(tooltip, element);
+        document.body.appendChild(tooltip);
+        activeTooltip = tooltip;
+    }
+    
+    function showTextDetectionTooltip(element, result) {
+        hideTooltip();
+        
+        const tooltip = createTooltip();
+        const isAI = result.prediction === 'AI';
+        const confidence = Math.round(result.confidence * 100);
+        
+        tooltip.innerHTML = `
+            <div class="lion-tooltip-content">
+                <div class="lion-tooltip-header ${isAI ? 'ai-detected' : 'human-detected'}">
+                    <div class="detection-icon">
+                        ${isAI ? '🤖' : '👤'}
+                    </div>
+                    <div class="detection-result">
+                        <div class="result-label">${isAI ? 'AI Generated' : 'Human Written'}</div>
+                        <div class="confidence-bar">
+                            <div class="confidence-fill" style="width: ${confidence}%"></div>
+                        </div>
+                        <div class="confidence-text">${confidence}% confidence</div>
+                    </div>
+                </div>
+                <div class="lion-tooltip-body">
+                    <small>${result.reasoning}</small>
+                </div>
+            </div>
+        `;
+        
+        positionTooltip(tooltip, element);
+        document.body.appendChild(tooltip);
+        activeTooltip = tooltip;
+    }
+    
+    function showErrorTooltip(element, message) {
+        hideTooltip();
+        
+        const tooltip = createTooltip();
+        tooltip.innerHTML = `
+            <div class="lion-tooltip-content">
+                <div class="lion-tooltip-header error">
+                    <span>⚠️ ${message}</span>
+                </div>
+            </div>
+        `;
+        
+        positionTooltip(tooltip, element);
+        document.body.appendChild(tooltip);
+        activeTooltip = tooltip;
+    }
+    
+    function createTooltip() {
+        const tooltip = document.createElement('div');
+        tooltip.className = 'lion-text-tooltip';
+        return tooltip;
+    }
+    
+    function positionTooltip(tooltip, element) {
+        const rect = element.getBoundingClientRect();
+        const scrollY = window.pageYOffset || document.documentElement.scrollTop;
+        const scrollX = window.pageXOffset || document.documentElement.scrollLeft;
+        
+        // Position above the element
+        const top = rect.top + scrollY - 10;
+        const left = rect.left + scrollX + (rect.width / 2);
+        
+        tooltip.style.position = 'absolute';
+        tooltip.style.top = `${top}px`;
+        tooltip.style.left = `${left}px`;
+        tooltip.style.transform = 'translateX(-50%) translateY(-100%)';
+        tooltip.style.zIndex = '999999';
+    }
+    
+    function hideTooltip() {
+        if (activeTooltip) {
+            activeTooltip.remove();
+            activeTooltip = null;
+        }
+    }
+    
+    function hashText(text) {
+        // Simple hash function for caching
+        let hash = 0;
+        for (let i = 0; i < text.length; i++) {
+            const char = text.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash = hash & hash; // Convert to 32-bit integer
+        }
+        return hash.toString();
+    }
+
+    // Inject enhanced styles including text detection tooltip styles
     function injectLionProjectStyles() {
         const oldStyle = document.getElementById('lion-project-styles');
         if (oldStyle) oldStyle.remove();
         
         const style = document.createElement('style');
         style.id = 'lion-project-styles';
-        if (document.getElementById('lion-project-styles')) return;
         
         style.textContent = `
             @import url('https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600&display=swap');
@@ -167,14 +544,122 @@ if (window.aiVoiceDetectorInjected) {
                 filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.3));
             }
             
-            @keyframes lionSlideIn {
+            /* Text Detection Tooltip Styles (NEW) */
+            .lion-text-tooltip {
+                background: linear-gradient(145deg, rgba(26, 26, 27, 0.95), rgba(40, 40, 42, 0.95));
+                border: 1px solid rgba(255, 255, 255, 0.12);
+                border-radius: 12px;
+                padding: 0;
+                font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+                font-size: 13px;
+                color: #e8e8e8;
+                backdrop-filter: blur(20px);
+                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+                max-width: 280px;
+                animation: tooltipFadeIn 0.2s ease-out;
+                pointer-events: auto;
+                -webkit-font-smoothing: antialiased;
+                -moz-osx-font-smoothing: grayscale;
+            }
+            
+            .lion-tooltip-content {
+                padding: 12px;
+            }
+            
+            .lion-tooltip-header {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                margin-bottom: 8px;
+            }
+            
+            .lion-tooltip-header.loading {
+                color: #c0392b;
+            }
+            
+            .lion-tooltip-header.ai-detected {
+                color: #e74c3c;
+            }
+            
+            .lion-tooltip-header.human-detected {
+                color: #27ae60;
+            }
+            
+            .lion-tooltip-header.error {
+                color: #f39c12;
+            }
+            
+            .detection-icon {
+                font-size: 18px;
+                line-height: 1;
+            }
+            
+            .detection-result {
+                flex: 1;
+            }
+            
+            .result-label {
+                font-weight: 500;
+                font-size: 13px;
+                margin-bottom: 4px;
+                letter-spacing: 0.5px;
+            }
+            
+            .confidence-bar {
+                background: rgba(255, 255, 255, 0.1);
+                height: 4px;
+                border-radius: 2px;
+                overflow: hidden;
+                margin-bottom: 2px;
+            }
+            
+            .confidence-fill {
+                height: 100%;
+                background: linear-gradient(90deg, #27ae60, #2ecc71);
+                border-radius: 2px;
+                transition: width 0.3s ease;
+            }
+            
+            .ai-detected .confidence-fill {
+                background: linear-gradient(90deg, #e74c3c, #c0392b);
+            }
+            
+            .confidence-text {
+                font-size: 11px;
+                opacity: 0.8;
+                font-weight: 400;
+            }
+            
+            .lion-tooltip-body {
+                color: #b0b0b0;
+                font-size: 11px;
+                line-height: 1.4;
+                opacity: 0.9;
+            }
+            
+            .loading-spinner {
+                width: 12px;
+                height: 12px;
+                border: 2px solid rgba(192, 57, 43, 0.3);
+                border-top: 2px solid #c0392b;
+                border-radius: 50%;
+                animation: spin 1s linear infinite;
+            }
+            
+            @keyframes tooltipFadeIn {
                 from {
-                    transform: translateX(-100%) scale(0.9);
                     opacity: 0;
+                    transform: translateX(-50%) translateY(-100%) scale(0.9);
                 }
                 to {
-                    transform: translateX(0) scale(1);
                     opacity: 1;
+                    transform: translateX(-50%) translateY(-100%) scale(1);
+                }
+            }
+            
+            @keyframes spin {
+                to {
+                    transform: rotate(360deg);
                 }
             }
             
@@ -189,6 +674,11 @@ if (window.aiVoiceDetectorInjected) {
                 }
             }
             
+            .lion-alert.pulse {
+                animation: lionAlertSlide 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55), 
+                          lionPulse 2s ease-in-out infinite 0.5s;
+            }
+            
             @keyframes lionPulse {
                 0%, 100% {
                     box-shadow: 0 12px 40px rgba(220, 38, 38, 0.4);
@@ -196,11 +686,6 @@ if (window.aiVoiceDetectorInjected) {
                 50% {
                     box-shadow: 0 16px 50px rgba(220, 38, 38, 0.6);
                 }
-            }
-            
-            .lion-alert.pulse {
-                animation: lionAlertSlide 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55), 
-                          lionPulse 2s ease-in-out infinite 0.5s;
             }
         `;
         document.head.appendChild(style);
@@ -229,11 +714,23 @@ if (window.aiVoiceDetectorInjected) {
             
         } else if (request.action === 'getMonitoringState') {
             sendResponse({ isMonitoring });
+            
+        } else if (request.action === 'toggleTextDetection') {
+            textDetectionEnabled = !textDetectionEnabled;
+            console.log(`🔤 Text detection ${textDetectionEnabled ? 'enabled' : 'disabled'}`);
+            if (!textDetectionEnabled) {
+                hideTooltip();
+            }
+            sendResponse({ success: true, textDetectionEnabled });
+            
+        } else if (request.action === 'getTextDetectionState') {
+            sendResponse({ textDetectionEnabled });
         }
         
         return true;
     });
 
+    // EXISTING VOICE DETECTION CODE CONTINUES HERE...
     async function startRealTimeStreaming() {
         if (isMonitoring) {
             console.log('⚠️ Already monitoring');
@@ -716,7 +1213,6 @@ if (window.aiVoiceDetectorInjected) {
                 prediction: isFake ? 'FAKE' : 'REAL',
                 confidence: Math.max(realProb, fakeProb),
                 probabilities: { real: realProb, fake: fakeProb },
-                // Threshold
                 is_suspicious: fakeProb > 0.7,
                 raw_result: markdownResult,
                 timestamp: new Date().toISOString(),
@@ -819,7 +1315,7 @@ if (window.aiVoiceDetectorInjected) {
                 AI Detected
             </div>
             <div class="lion-alert-body">
-                Confidence: ${(result.confidence * 100).toFixed(1)}
+                Confidence: ${(result.confidence * 100).toFixed(1)}%
             </div>
             <button class="lion-alert-button" id="dismissLionAlert">
                 Dismiss
@@ -950,6 +1446,7 @@ if (window.aiVoiceDetectorInjected) {
     // Cleanup function
     window.aiVoiceDetectorCleanup = function() {
         stopRealTimeStreaming();
+        hideTooltip();
         if (globalState) {
             globalState.screenShareRequested = false;
             globalState.screenShareInProgress = false;
@@ -957,5 +1454,9 @@ if (window.aiVoiceDetectorInjected) {
         }
     };
 
-    console.log(`✅ ${isMac ? 'Mac' : 'PC'}-Compatible Lion Project AI Voice Detector Ready!`);
+    // Initialize everything
+    injectLionProjectStyles();
+    initializeTextDetection();
+    
+    console.log(`✅ ${isMac ? 'Mac' : 'PC'}-Compatible Lion Project AI Voice + Text Detector Ready!`);
 }
