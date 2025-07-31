@@ -716,7 +716,8 @@ if (window.aiVoiceDetectorInjected) {
                 prediction: isFake ? 'FAKE' : 'REAL',
                 confidence: Math.max(realProb, fakeProb),
                 probabilities: { real: realProb, fake: fakeProb },
-                is_suspicious: fakeProb > 0.6,
+                // Threshold
+                is_suspicious: fakeProb > 0.7,
                 raw_result: markdownResult,
                 timestamp: new Date().toISOString(),
                 url: window.location.href,
